@@ -18,6 +18,14 @@ def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
+def _parse_body(body: bytes):
+    """Return (parsed_dict, None) on success or (None, JSONResponse) on bad JSON."""
+    try:
+        return json.loads(body or b"{}"), None
+    except (json.JSONDecodeError, ValueError):
+        return None, JSONResponse({"error": "invalid character in request body"}, status_code=400)
+
+
 def create_app(
     config_path: str,
     db_path: str,
@@ -83,7 +91,11 @@ def create_app(
     @app.post("/api/embed")
     async def embed(request: Request):
         body = await request.body()
-        data = fakes.fake_embed(json.loads(body or b"{}"))
+        parsed, err = _parse_body(body)
+        if err is not None:
+            record(request, body, routed="fake", response_status=400)
+            return err
+        data = fakes.fake_embed(parsed)
         record(request, body, routed="fake", response_status=200)
         return JSONResponse(data)
 
@@ -121,7 +133,13 @@ def create_app(
     async def _handle_generate(request: Request, is_chat: bool):
         cfg = cfg_store.get()
         body = await request.body()
-        parsed = json.loads(body or b"{}")
+
+        # FIX 2: gracefully handle malformed JSON
+        parsed, err = _parse_body(body)
+        if err is not None:
+            record(request, body, model=None, routed="fake", response_status=400)
+            return err
+
         model = parsed.get("model", cfg.default_model)
         prompt = extract_prompt(parsed)
         ip = request.client.host if request.client else "0.0.0.0"
@@ -141,9 +159,9 @@ def create_app(
             record(request, body, model=model, routed="fake", response_status=200)
             return JSONResponse(data)
 
-        t0 = time.time()
-        record(request, body, model=model, routed="real", response_status=200,
-               latency_ms=int((time.time() - t0) * 1000))
+        # FIX 1: log with response_status=None and latency_ms=None since the
+        # actual status and latency are unknown until the upstream stream completes.
+        record(request, body, model=model, routed="real", response_status=None, latency_ms=None)
         gen = stream_generate(state["client"], cfg.real_ollama_url, request.url.path, body)
         return StreamingResponse(gen, media_type="application/x-ndjson")
 
