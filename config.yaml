@@ -1,5 +1,5 @@
 fake_pct: 30
-real_ollama_url: "http://127.0.0.1:11500"
+real_ollama_url: "http://ollama:11500"
 default_model: "qwen2.5:7b"
 advertised_models:
   - "qwen2.5:7b"

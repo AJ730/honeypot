@@ -176,4 +176,10 @@ def create_app(
     return app
 
 
-app = create_app("config.yaml", "store.db", "events.jsonl")
+import os
+
+app = create_app(
+    os.environ.get("HONEYPOT_CONFIG", "config.yaml"),
+    os.environ.get("HONEYPOT_DB", "store.db"),
+    os.environ.get("HONEYPOT_JSONL", "events.jsonl"),
+)
