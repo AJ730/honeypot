@@ -1,0 +1,8 @@
+# Honeypot project
+.venv/
+__pycache__/
+*.pyc
+store.db
+events.jsonl
+config.local.yaml
+.env
