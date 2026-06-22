@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import datetime
+
 _REFUSAL_TEXT = (
     "I can't help with that. It appears to involve activity that could cause "
     "harm or break the law, so I won't assist. If there's a safe, legitimate "
@@ -7,8 +9,14 @@ _REFUSAL_TEXT = (
 )
 
 
+def _now_ts() -> str:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond:06d}Z"
+
+
 def check(prompt: str, patterns: list[str]) -> str | None:
-    low = prompt.lower()
+    text = prompt if isinstance(prompt, str) else (str(prompt) if prompt else "")
+    low = text.lower()
     for pat in patterns:
         if pat.lower() in low:
             return pat
@@ -18,7 +26,7 @@ def check(prompt: str, patterns: list[str]) -> str | None:
 def refusal_response(model: str) -> dict:
     return {
         "model": model,
-        "created_at": "2026-06-22T10:00:00.000000Z",
+        "created_at": _now_ts(),
         "response": _REFUSAL_TEXT,
         "done": True,
         "done_reason": "stop",
@@ -28,7 +36,7 @@ def refusal_response(model: str) -> dict:
 def refusal_chat_response(model: str) -> dict:
     return {
         "model": model,
-        "created_at": "2026-06-22T10:00:00.000000Z",
+        "created_at": _now_ts(),
         "message": {"role": "assistant", "content": _REFUSAL_TEXT},
         "done": True,
         "done_reason": "stop",

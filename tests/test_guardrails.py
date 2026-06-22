@@ -13,6 +13,10 @@ def test_check_clean_prompt_returns_none():
     assert check("explain how TLS works", ["phishing", "write malware"]) is None
 
 
+def test_check_none_prompt_returns_none():
+    assert check(None, ["phishing"]) is None
+
+
 def test_refusal_response_shape():
     out = refusal_response("qwen2.5:7b")
     assert out["model"] == "qwen2.5:7b"
@@ -27,3 +31,4 @@ def test_refusal_chat_response_shape():
     assert out["message"]["role"] == "assistant"
     assert len(out["message"]["content"]) > 0
     assert out["done"] is True
+    assert "error" not in out
