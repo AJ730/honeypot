@@ -1,0 +1,24 @@
+fake_pct: 30
+real_ollama_url: "http://127.0.0.1:11500"
+default_model: "qwen2.5:7b"
+advertised_models:
+  - "qwen2.5:7b"
+  - "qwen2.5:3b"
+versions:
+  - "0.1.20"
+  - "0.3.6"
+  - "0.5.7"
+  - "0.9.0"
+  - "0.11.4"
+  - "0.12.6"
+guardrail_patterns:
+  - "phishing"
+  - "write malware"
+  - "ransomware"
+  - "steal credentials"
+  - "credit card dump"
+  - "exploit kit"
+fake_responses:
+  - "I'm a large language model and I'm happy to help. Could you give me a bit more detail about what you're looking for?"
+  - "Sure — here's a high-level overview. Let me know if you'd like me to go deeper on any part."
+max_body_bytes: 65536
