@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import hashlib
 
 CREATE_RESPONSE = {"status": "success"}
@@ -8,9 +9,11 @@ PUSH_RESPONSE = {"status": "success"}
 COPY_OK = "200 OK"
 DELETE_OK = "Model successfully deleted"
 
+EMBED_DIM = 768
+
 
 def _seeded_floats(seed: str, n: int) -> list[float]:
-    """Deterministic-but-varied pseudo-random floats in [-1, 1) from a seed."""
+    """Deterministic-but-varied pseudo-random floats in [-1, 1] from a seed."""
     out = []
     i = 0
     while len(out) < n:
@@ -32,8 +35,7 @@ def fake_embed(body: dict) -> dict:
     model = body.get("model", "embeddinggemma")
     text = str(body.get("input", ""))
     tokens = _token_count(text)
-    dims = min(10 + tokens, 768)
-    floats = _seeded_floats(f"embed:{text}", dims)
+    floats = _seeded_floats(f"embed:{model}:{text}", EMBED_DIM)
     durations = _seeded_floats(f"dur:{text}", 2)
     return {
         "model": model,
@@ -54,9 +56,11 @@ def fake_completion(body: dict, fake_responses: list[str]) -> dict:
     prompt = str(body.get("prompt") or body.get("messages") or "")
     h = int(hashlib.sha256(prompt.encode()).hexdigest(), 16)
     text = fake_responses[h % len(fake_responses)] if fake_responses else ""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    created_at = now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond:06d}Z"
     return {
         "model": model,
-        "created_at": "2026-06-22T10:00:00.000000Z",
+        "created_at": created_at,
         "response": text,
         "done": True,
         "done_reason": "stop",

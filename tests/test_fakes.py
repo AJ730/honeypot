@@ -1,6 +1,7 @@
 from honeypot.fakes import (
     fake_embed, fake_version, fake_completion,
     CREATE_RESPONSE, PULL_RESPONSE, PUSH_RESPONSE, COPY_OK, DELETE_OK,
+    EMBED_DIM,
 )
 
 
@@ -20,6 +21,28 @@ def test_fake_embed_scales_with_input():
     short = fake_embed({"model": "m", "input": "hi"})
     long = fake_embed({"model": "m", "input": "word " * 200})
     assert long["prompt_eval_count"] > short["prompt_eval_count"]
+
+
+def test_fake_embed_deterministic():
+    body = {"model": "embeddinggemma", "input": "hello world"}
+    a = fake_embed(body)
+    b = fake_embed(body)
+    assert a["embeddings"] == b["embeddings"]
+
+
+def test_fake_embed_different_models_different_vectors():
+    body_a = {"model": "model-a", "input": "hello world"}
+    body_b = {"model": "model-b", "input": "hello world"}
+    a = fake_embed(body_a)
+    b = fake_embed(body_b)
+    assert a["embeddings"] != b["embeddings"]
+
+
+def test_fake_embed_fixed_dimension():
+    short = fake_embed({"model": "m", "input": "hi"})
+    long = fake_embed({"model": "m", "input": "word " * 200})
+    assert len(short["embeddings"][0]) == EMBED_DIM
+    assert len(long["embeddings"][0]) == EMBED_DIM
 
 
 def test_fake_version_deterministic_per_ip():
@@ -52,3 +75,4 @@ def test_fake_completion_shape_and_determinism():
     assert a["model"] == "qwen2.5:7b"
     assert a["done"] is True
     assert a["response"] in ("resp-a", "resp-b")
+    assert a["done_reason"] == "stop"
