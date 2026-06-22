@@ -59,6 +59,9 @@ def create_dashboard(config_path: str, db_path: str, ollama_url: str,
     from honeypot.dashboard.stats import register_stats_routes
     register_stats_routes(app)
 
+    from honeypot.dashboard.feed import register_feed_routes
+    register_feed_routes(app)
+
     return app
 
 
