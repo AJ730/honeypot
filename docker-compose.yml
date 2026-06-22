@@ -1,0 +1,42 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    expose:
+      - "11500"
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11500
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=ollama:11500
+    volumes:
+      - ollama_models:/root/.ollama
+    entrypoint: >
+      sh -c "until ollama list >/dev/null 2>&1; do echo 'waiting for ollama...'; sleep 2; done;
+             ollama pull qwen2.5:7b &&
+             ollama pull qwen2.5:3b"
+    restart: "no"
+
+  honeypot:
+    build: .
+    depends_on:
+      - ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - honeypot_data:/app/data
+    environment:
+      - HONEYPOT_DB=/app/data/store.db
+      - HONEYPOT_JSONL=/app/data/events.jsonl
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
+  honeypot_data:
