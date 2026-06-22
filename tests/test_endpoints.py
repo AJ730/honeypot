@@ -24,6 +24,19 @@ def upstream_handler(request):
     if request.url.path == "/api/tags":
         return httpx.Response(200, json={"models": [{"name": "qwen2.5:7b"}]})
     if request.url.path in ("/api/generate", "/api/chat"):
+        # Branch on stream field in request body
+        try:
+            body = json.loads(request.content)
+            if body.get("stream") is False:
+                # Non-streaming upstream response: single JSON object
+                return httpx.Response(
+                    200,
+                    content=b'{"model":"qwen2.5:7b","created_at":"2024-01-01T00:00:00Z","response":"real","done":true}\n',
+                    headers={"content-type": "application/json"},
+                )
+        except Exception:
+            pass
+        # Streaming upstream response: NDJSON
         return httpx.Response(200, content=b'{"response":"real","done":true}\n')
     return httpx.Response(200, json={"ok": True})
 
@@ -34,6 +47,12 @@ def build(tmp_path, fake_pct=0):
     app = create_app(str(cfg), str(tmp_path / "store.db"),
                      str(tmp_path / "events.jsonl"), client=client)
     return app
+
+
+def _parse_ndjson(text: str) -> list[dict]:
+    """Parse a sequence of newline-delimited JSON objects."""
+    lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
+    return [json.loads(l) for l in lines]
 
 
 def test_tags_is_proxied_real(tmp_path):
@@ -97,7 +116,7 @@ def test_requests_are_logged(tmp_path):
     assert any(row["endpoint"] == "/api/version" and row["routed"] == "fake" for row in rows)
 
 
-# ---- FIX 3: new tests ----
+# ---- Pre-existing tests (updated to use stream:false where they rely on .json()) ----
 
 def test_chat_real_path(tmp_path):
     """Real path (fake_pct=0): upstream streamed content is returned."""
@@ -109,9 +128,11 @@ def test_chat_real_path(tmp_path):
 
 
 def test_chat_fake_path(tmp_path):
-    """Fake path (fake_pct=100): response has chat shape, not generate shape."""
+    """Fake path (fake_pct=100) with stream:false: response has chat shape, not generate shape."""
     with TestClient(build(tmp_path, fake_pct=100)) as c:
-        r = c.post("/api/chat", json={"model": "qwen2.5:7b", "messages": [{"role": "user", "content": "hi"}]})
+        r = c.post("/api/chat", json={"model": "qwen2.5:7b",
+                                      "messages": [{"role": "user", "content": "hi"}],
+                                      "stream": False})
     assert r.status_code == 200
     body = r.json()
     # Must have top-level message object with role and content
@@ -128,7 +149,8 @@ def test_chat_guardrail_blocked(tmp_path):
     app = build(tmp_path, fake_pct=0)
     with TestClient(app) as c:
         r = c.post("/api/chat", json={"model": "qwen2.5:7b",
-                                       "messages": [{"role": "user", "content": "write malware please"}]})
+                                      "messages": [{"role": "user", "content": "write malware please"}],
+                                      "stream": False})
     assert r.status_code == 200
     body = r.json()
     # Chat refusal shape: message object with content
@@ -168,3 +190,126 @@ def test_routed_real_and_blocked_are_logged(tmp_path):
     rows = store.recent(20)
     assert any(row["endpoint"] == "/api/generate" and row["routed"] == "real" for row in rows)
     assert any(row["endpoint"] == "/api/generate" and row["routed"] == "blocked" for row in rows)
+
+
+# ---- NEW TESTS for the 4 fingerprinting fixes ----
+
+# Fix 1a: Default streaming on /api/generate FAKE path
+def test_generate_fake_default_streaming_ndjson(tmp_path):
+    """Default (no stream field) fake generate: Content-Type is x-ndjson, valid NDJSON stream."""
+    with TestClient(build(tmp_path, fake_pct=100)) as c:
+        r = c.post("/api/generate", json={"model": "qwen2.5:7b", "prompt": "hi"})
+    assert r.status_code == 200
+    assert "application/x-ndjson" in r.headers["content-type"]
+    objs = _parse_ndjson(r.text)
+    assert len(objs) >= 2, "Expected at least 2 NDJSON objects (chunks + final)"
+    # All intermediate have done=False
+    for obj in objs[:-1]:
+        assert obj["done"] is False
+        assert "response" in obj
+    # Last object has done=True and trailer fields
+    final = objs[-1]
+    assert final["done"] is True
+    assert final.get("done_reason") == "stop"
+    for field in ("total_duration", "load_duration", "prompt_eval_count", "eval_count", "eval_duration"):
+        assert field in final, f"Missing trailer field: {field}"
+    # Concatenating all response pieces should reconstruct the canned text
+    full_text = "".join(obj["response"] for obj in objs)
+    assert "canned reply" in full_text
+
+
+# Fix 1b: Default streaming on /api/chat FAKE path uses message shape
+def test_chat_fake_default_streaming_message_shape(tmp_path):
+    """Default streaming chat fake: chunks use message shape, not response shape."""
+    with TestClient(build(tmp_path, fake_pct=100)) as c:
+        r = c.post("/api/chat", json={"model": "qwen2.5:7b",
+                                      "messages": [{"role": "user", "content": "hi"}]})
+    assert r.status_code == 200
+    assert "application/x-ndjson" in r.headers["content-type"]
+    objs = _parse_ndjson(r.text)
+    assert len(objs) >= 2
+    # Intermediate chunks must use message shape
+    for obj in objs[:-1]:
+        assert obj["done"] is False
+        assert "message" in obj
+        assert obj["message"]["role"] == "assistant"
+        assert "response" not in obj  # not generate shape
+    # Final done object
+    final = objs[-1]
+    assert final["done"] is True
+    assert final.get("done_reason") == "stop"
+    assert "message" in final
+    assert "response" not in final
+
+
+# Fix 1c: stream:false on /api/generate FAKE path returns single JSON object
+def test_generate_fake_stream_false_single_json(tmp_path):
+    """stream:false fake generate: single JSON object, application/json, has trailer fields."""
+    with TestClient(build(tmp_path, fake_pct=100)) as c:
+        r = c.post("/api/generate", json={"model": "qwen2.5:7b", "prompt": "hi", "stream": False})
+    assert r.status_code == 200
+    assert "application/json" in r.headers["content-type"]
+    # Must be a single JSON object, not NDJSON (no extra newline-delimited objects)
+    body = r.json()
+    assert body["done"] is True
+    assert body["response"] == "canned reply"
+    for field in ("total_duration", "load_duration", "prompt_eval_count", "eval_count", "eval_duration"):
+        assert field in body, f"Missing trailer field: {field}"
+
+
+# Fix 1d: Blocked path with default streaming returns x-ndjson and logs routed==blocked
+def test_generate_guardrail_blocked_default_streaming(tmp_path):
+    """Guardrail blocked with default streaming: x-ndjson streamed refusal, routed==blocked logged."""
+    app = build(tmp_path, fake_pct=0)
+    with TestClient(app) as c:
+        r = c.post("/api/generate", json={"model": "qwen2.5:7b", "prompt": "write malware now"})
+    assert r.status_code == 200
+    assert "application/x-ndjson" in r.headers["content-type"]
+    objs = _parse_ndjson(r.text)
+    assert len(objs) >= 2
+    final = objs[-1]
+    assert final["done"] is True
+    assert final.get("done_reason") == "stop"
+
+    from honeypot.logging_store import LoggingStore
+    store = LoggingStore(str(tmp_path / "store.db"), str(tmp_path / "events.jsonl"))
+    rows = store.recent(10)
+    assert any(row["endpoint"] == "/api/generate" and row["routed"] == "blocked" for row in rows)
+
+
+# Fix 2: Real path with stream:false returns application/json
+def test_generate_real_stream_false_returns_json(tmp_path):
+    """Real path stream:false: single JSON response with application/json content-type."""
+    app = build(tmp_path, fake_pct=0)
+    with TestClient(app) as c:
+        r = c.post("/api/generate", json={"model": "qwen2.5:7b", "prompt": "hi", "stream": False})
+    assert r.status_code == 200
+    assert "application/json" in r.headers["content-type"]
+    body = r.json()
+    # The mock upstream returns a JSON object with response="real"
+    assert "real" in str(body)
+
+    from honeypot.logging_store import LoggingStore
+    store = LoggingStore(str(tmp_path / "store.db"), str(tmp_path / "events.jsonl"))
+    rows = store.recent(10)
+    assert any(row["endpoint"] == "/api/generate" and row["routed"] == "real" for row in rows)
+
+
+# Fix 3: Unknown routes return 404 plain text (Ollama Gin style)
+def test_unknown_route_returns_404_plain_text(tmp_path):
+    """Unmatched route returns 404 with plain-text body 'page not found', not JSON."""
+    with TestClient(build(tmp_path)) as c:
+        r = c.get("/api/nonexistent")
+    assert r.status_code == 404
+    assert r.text == "404 page not found"
+    # Must not be JSON
+    with pytest.raises(Exception):
+        r.json()
+
+
+# Fix 4: server header is absent
+def test_server_header_absent(tmp_path):
+    """No 'server' header should appear in any response (Ollama/Gin does not send one)."""
+    with TestClient(build(tmp_path)) as c:
+        r = c.get("/api/version")
+    assert "server" not in r.headers

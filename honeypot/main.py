@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import time
 
 import httpx
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from honeypot.config import ConfigStore
 from honeypot.logging_store import LoggingStore
@@ -17,6 +19,81 @@ from honeypot.proxy import forward_json, stream_generate
 
 def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _now_ts() -> str:
+    """Per-call UTC timestamp in Ollama's microsecond format."""
+    import datetime
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond:06d}Z"
+
+
+def _trailer_fields() -> dict:
+    """Plausible random trailer numeric fields matching real Ollama non-stream responses."""
+    return {
+        "total_duration": random.randint(500_000_000, 8_000_000_000),
+        "load_duration": random.randint(10_000_000, 500_000_000),
+        "prompt_eval_count": random.randint(5, 64),
+        "eval_count": random.randint(10, 256),
+        "eval_duration": random.randint(300_000_000, 6_000_000_000),
+    }
+
+
+def _split_words(text: str) -> list[str]:
+    """Split text into a small number of word-group pieces for streaming simulation."""
+    words = text.split(" ")
+    # group into ~3–5 pieces
+    n = max(2, min(5, len(words)))
+    size = max(1, len(words) // n)
+    pieces = []
+    for i in range(0, len(words), size):
+        chunk = " ".join(words[i:i + size])
+        if pieces:
+            chunk = " " + chunk  # restore space between groups
+        pieces.append(chunk)
+    return pieces if pieces else [""]
+
+
+def _stream_generate_response(model: str, text: str, is_chat: bool):
+    """Yield NDJSON bytes simulating an Ollama streaming response."""
+    pieces = _split_words(text)
+    ts = _now_ts()
+    for piece in pieces:
+        if is_chat:
+            obj = {
+                "model": model,
+                "created_at": ts,
+                "message": {"role": "assistant", "content": piece},
+                "done": False,
+            }
+        else:
+            obj = {
+                "model": model,
+                "created_at": ts,
+                "response": piece,
+                "done": False,
+            }
+        yield (json.dumps(obj) + "\n").encode()
+    # Final done object
+    trailer = _trailer_fields()
+    if is_chat:
+        final = {
+            "model": model,
+            "created_at": ts,
+            "message": {"role": "assistant", "content": ""},
+            "done": True,
+            "done_reason": "stop",
+        }
+    else:
+        final = {
+            "model": model,
+            "created_at": ts,
+            "response": "",
+            "done": True,
+            "done_reason": "stop",
+        }
+    final.update(trailer)
+    yield (json.dumps(final) + "\n").encode()
 
 
 def _parse_body(body: bytes):
@@ -37,6 +114,23 @@ def create_app(
     cfg_store = ConfigStore(config_path)
     log = LoggingStore(db_path, jsonl_path)
     state = {"client": client}
+
+    # FIX 4 — Remove the `server` header from every response
+    @app.middleware("http")
+    async def _strip_server(request, call_next):
+        resp = await call_next(request)
+        if "server" in resp.headers:
+            del resp.headers["server"]
+        return resp
+
+    # FIX 3 — Ollama-style 404/405 plain text instead of FastAPI JSON errors
+    @app.exception_handler(StarletteHTTPException)
+    async def _ollama_errors(request, exc):
+        if exc.status_code == 404:
+            return PlainTextResponse("404 page not found", status_code=404)
+        if exc.status_code == 405:
+            return PlainTextResponse("405 method not allowed", status_code=405)
+        return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
 
     @app.on_event("startup")
     async def _startup():
@@ -135,7 +229,6 @@ def create_app(
         cfg = cfg_store.get()
         body = await request.body()
 
-        # FIX 2: gracefully handle malformed JSON
         parsed, err = _parse_body(body)
         if err is not None:
             record(request, body, model=None, routed="fake", response_status=400)
@@ -145,26 +238,68 @@ def create_app(
         prompt = extract_prompt(parsed)
         ip = request.client.host if request.client else "0.0.0.0"
 
+        # FIX 1: determine streaming (absent → True, Ollama default)
+        stream = parsed.get("stream", True)
+        do_stream = stream is not False  # only False (the boolean) disables streaming
+
         trip = guardrails.check(prompt, cfg.guardrail_patterns)
         if trip is not None:
-            data = guardrails.refusal_chat_response(model) if is_chat else guardrails.refusal_response(model)
+            if is_chat:
+                refusal_data = guardrails.refusal_chat_response(model)
+                text = refusal_data["message"]["content"]
+            else:
+                refusal_data = guardrails.refusal_response(model)
+                text = refusal_data["response"]
+
             record(request, body, model=model, routed="blocked", guardrail_trip=trip, response_status=200)
-            return JSONResponse(data)
+
+            if do_stream:
+                return StreamingResponse(
+                    _stream_generate_response(model, text, is_chat),
+                    media_type="application/x-ndjson",
+                )
+            else:
+                refusal_data.update(_trailer_fields())
+                return JSONResponse(refusal_data, media_type="application/json")
 
         if should_fake(ip, prompt, cfg.fake_pct):
-            data = fakes.fake_completion(parsed, cfg.fake_responses)
-            if is_chat:
-                data = {"model": model, "created_at": data["created_at"],
-                        "message": {"role": "assistant", "content": data["response"]},
-                        "done": True, "done_reason": "stop"}
-            record(request, body, model=model, routed="fake", response_status=200)
-            return JSONResponse(data)
+            fake_data = fakes.fake_completion(parsed, cfg.fake_responses)
+            text = fake_data["response"]
 
-        # FIX 1: log with response_status=None and latency_ms=None since the
-        # actual status and latency are unknown until the upstream stream completes.
-        record(request, body, model=model, routed="real", response_status=None, latency_ms=None)
-        gen = stream_generate(state["client"], cfg.real_ollama_url, request.url.path, body)
-        return StreamingResponse(gen, media_type="application/x-ndjson")
+            record(request, body, model=model, routed="fake", response_status=200)
+
+            if do_stream:
+                return StreamingResponse(
+                    _stream_generate_response(model, text, is_chat),
+                    media_type="application/x-ndjson",
+                )
+            else:
+                if is_chat:
+                    single = {
+                        "model": model,
+                        "created_at": fake_data["created_at"],
+                        "message": {"role": "assistant", "content": text},
+                        "done": True,
+                        "done_reason": "stop",
+                    }
+                else:
+                    single = fake_data
+                single.update(_trailer_fields())
+                return JSONResponse(single, media_type="application/json")
+
+        # FIX 2: real path — branch on stream flag
+        if not do_stream:
+            # Non-streaming: forward as a single JSON call
+            t0 = time.time()
+            status, data = await forward_json(state["client"], cfg.real_ollama_url, request.url.path, "POST", body)
+            record(request, body, model=model, routed="real",
+                   response_status=status, latency_ms=int((time.time() - t0) * 1000))
+            return JSONResponse(data, status_code=status, media_type="application/json")
+        else:
+            # Streaming: log once then stream
+            record(request, body, model=model, routed="real", response_status=None, latency_ms=None)
+            gen = stream_generate(state["client"], cfg.real_ollama_url, request.url.path, body)
+            return StreamingResponse(gen, media_type="application/x-ndjson")
 
     @app.post("/api/generate")
     async def generate(request: Request):
