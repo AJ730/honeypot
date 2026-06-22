@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 
 import httpx
@@ -175,8 +176,6 @@ def create_app(
 
     return app
 
-
-import os
 
 app = create_app(
     os.environ.get("HONEYPOT_CONFIG", "config.yaml"),
