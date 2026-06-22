@@ -53,6 +53,9 @@ def create_dashboard(config_path: str, db_path: str, ollama_url: str,
             return RedirectResponse("/login", status_code=303)
         return _TEMPLATES.TemplateResponse(request, "base.html")
 
+    from honeypot.dashboard.config_api import register_config_routes
+    register_config_routes(app)
+
     return app
 
 
