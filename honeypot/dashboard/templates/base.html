@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Honeypot Admin</title>
+  <script src="/static/htmx.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 0; background: #f4f4f5; }
+    header { background: #1d4ed8; color: #fff; padding: .75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { margin: 0; font-size: 1.2rem; }
+    nav a { color: #bfdbfe; text-decoration: none; margin-left: 1.25rem; font-size: .95rem; }
+    nav a:hover { color: #fff; }
+    main { padding: 1.5rem; }
+    .panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .panel h2 { margin: 0 0 1rem; font-size: 1.1rem; color: #374151; }
+    .placeholder { color: #9ca3af; font-style: italic; }
+    form.logout { display: inline; }
+    button.logout { background: none; border: none; color: #bfdbfe; cursor: pointer; font-size: .95rem; margin-left: 1.25rem; padding: 0; }
+    button.logout:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Honeypot Admin</h1>
+    <nav>
+      <a href="#config">Config</a>
+      <a href="#models">Models</a>
+      <a href="#live">Live</a>
+      <a href="#analytics">Analytics</a>
+      <form class="logout" method="post" action="/logout">
+        <button class="logout" type="submit">Logout</button>
+      </form>
+    </nav>
+  </header>
+  <main>
+    <div id="config" class="panel">
+      <h2>Config</h2>
+      <p class="placeholder">Config panel — coming in Task 2.</p>
+    </div>
+    <div id="models" class="panel">
+      <h2>Models</h2>
+      <p class="placeholder">Models panel — coming in Task 3.</p>
+    </div>
+    <div id="live" class="panel">
+      <h2>Live</h2>
+      <p class="placeholder">Live feed — coming in Task 4.</p>
+    </div>
+    <div id="analytics" class="panel">
+      <h2>Analytics</h2>
+      <p class="placeholder">Analytics panel — coming in Task 5.</p>
+    </div>
+  </main>
+</body>
+</html>
