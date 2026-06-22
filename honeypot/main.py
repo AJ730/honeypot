@@ -57,19 +57,18 @@ def _split_words(text: str) -> list[str]:
 def _stream_generate_response(model: str, text: str, is_chat: bool):
     """Yield NDJSON bytes simulating an Ollama streaming response."""
     pieces = _split_words(text)
-    ts = _now_ts()
     for piece in pieces:
         if is_chat:
             obj = {
                 "model": model,
-                "created_at": ts,
+                "created_at": _now_ts(),
                 "message": {"role": "assistant", "content": piece},
                 "done": False,
             }
         else:
             obj = {
                 "model": model,
-                "created_at": ts,
+                "created_at": _now_ts(),
                 "response": piece,
                 "done": False,
             }
@@ -79,7 +78,7 @@ def _stream_generate_response(model: str, text: str, is_chat: bool):
     if is_chat:
         final = {
             "model": model,
-            "created_at": ts,
+            "created_at": _now_ts(),
             "message": {"role": "assistant", "content": ""},
             "done": True,
             "done_reason": "stop",
@@ -87,7 +86,7 @@ def _stream_generate_response(model: str, text: str, is_chat: bool):
     else:
         final = {
             "model": model,
-            "created_at": ts,
+            "created_at": _now_ts(),
             "response": "",
             "done": True,
             "done_reason": "stop",

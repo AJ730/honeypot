@@ -1,4 +1,5 @@
 import json
+import os
 from honeypot.logging_store import LoggingStore
 
 
@@ -47,6 +48,38 @@ def test_log_tolerates_missing_keys(tmp_path):
     rows = store.recent(10)
     assert rows[0]["model"] is None
     assert rows[0]["routed"] == "fake"
+
+
+def test_jsonl_rotates_when_size_exceeded(tmp_path):
+    db = str(tmp_path / "store.db")
+    jsonl = str(tmp_path / "events.jsonl")
+    store = LoggingStore(db, jsonl, max_jsonl_bytes=300, backup_count=3)
+    for _ in range(40):
+        store.log(sample_record())
+    assert os.path.exists(jsonl + ".1")          # rotation happened
+    assert os.path.getsize(jsonl) <= 300 + 1024  # current file reset to small
+    cur = store._conn.execute("select count(*) from requests")
+    assert cur.fetchone()[0] == 40               # SQLite keeps ALL rows
+
+
+def test_jsonl_rotation_respects_backup_count(tmp_path):
+    db = str(tmp_path / "store.db")
+    jsonl = str(tmp_path / "events.jsonl")
+    store = LoggingStore(db, jsonl, max_jsonl_bytes=200, backup_count=2)
+    for _ in range(120):
+        store.log(sample_record())
+    assert os.path.exists(jsonl + ".1")
+    assert os.path.exists(jsonl + ".2")
+    assert not os.path.exists(jsonl + ".3")      # never more than backup_count
+
+
+def test_no_rotation_when_disabled(tmp_path):
+    db = str(tmp_path / "store.db")
+    jsonl = str(tmp_path / "events.jsonl")
+    store = LoggingStore(db, jsonl, max_jsonl_bytes=0)  # disabled
+    for _ in range(50):
+        store.log(sample_record())
+    assert not os.path.exists(jsonl + ".1")
 
 
 def test_recent_returns_newest_first(tmp_path):
