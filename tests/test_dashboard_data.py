@@ -10,9 +10,13 @@ def test_clear_data_wipes_both_sinks(tmp_path):
     s = LoggingStore(db, jsonl)
     for ip in ["1.1.1.1", "2.2.2.2"]:
         s.log({"source_ip": ip, "endpoint": "/api/version", "routed": "fake"})
+    s.log_scan("9.9.9.9", 22)
+    s.log_scan("9.9.9.9", 8080)
     assert s._conn.execute("select count(*) from requests").fetchone()[0] == 2
+    assert s._conn.execute("select count(*) from scans").fetchone()[0] == 2
     clear_data(db, jsonl)
     assert s._conn.execute("select count(*) from requests").fetchone()[0] == 0
+    assert s._conn.execute("select count(*) from scans").fetchone()[0] == 0
     assert (tmp_path / "events.jsonl").read_text() == ""
 
 

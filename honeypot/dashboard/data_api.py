@@ -22,11 +22,13 @@ def clear_data(db_path: str, jsonl_path: str) -> None:
     if os.path.exists(db_path):
         conn = sqlite3.connect(db_path)
         try:
-            conn.execute("DELETE FROM requests")
-            conn.execute("DELETE FROM sqlite_sequence WHERE name='requests'")
+            for table in ("requests", "scans"):
+                try:
+                    conn.execute("DELETE FROM %s" % table)
+                    conn.execute("DELETE FROM sqlite_sequence WHERE name=?", (table,))
+                except sqlite3.OperationalError:
+                    pass  # table not created yet
             conn.commit()
-        except sqlite3.OperationalError:
-            pass  # table not created yet
         finally:
             conn.close()
     # Truncate the active JSONL and drop any rotated backups.
@@ -64,12 +66,7 @@ def register_data_routes(app) -> None:
         return FileResponse(path, media_type="application/x-ndjson",
                             filename="honeypot-events.jsonl")
 
-    @router.get("/data/download/csv")
-    async def download_csv(request: Request):
-        if not app.state.logged_in(request):
-            return RedirectResponse("/login", status_code=303)
-        db_path = app.state.db_path
-
+    def _csv_response(db_path: str, table: str, filename: str) -> StreamingResponse:
         def rows():
             buf = io.StringIO()
             w = csv.writer(buf)
@@ -82,7 +79,7 @@ def register_data_routes(app) -> None:
             except Exception:
                 w.writerow(["error"]); yield flush(); return
             try:
-                cur = conn.execute("SELECT * FROM requests ORDER BY id ASC")
+                cur = conn.execute("SELECT * FROM %s ORDER BY id ASC" % table)
                 w.writerow([d[0] for d in cur.description]); yield flush()
                 for row in cur:
                     w.writerow(row); yield flush()
@@ -93,6 +90,18 @@ def register_data_routes(app) -> None:
 
         return StreamingResponse(
             rows(), media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=honeypot-requests.csv"})
+            headers={"Content-Disposition": "attachment; filename=%s" % filename})
+
+    @router.get("/data/download/csv")
+    async def download_csv(request: Request):
+        if not app.state.logged_in(request):
+            return RedirectResponse("/login", status_code=303)
+        return _csv_response(app.state.db_path, "requests", "honeypot-requests.csv")
+
+    @router.get("/data/download/scans")
+    async def download_scans(request: Request):
+        if not app.state.logged_in(request):
+            return RedirectResponse("/login", status_code=303)
+        return _csv_response(app.state.db_path, "scans", "honeypot-scans.csv")
 
     app.include_router(router)

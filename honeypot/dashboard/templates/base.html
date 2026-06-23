@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>honeypot // ops console</title>
-  <link rel="stylesheet" href="/static/style.css?v=13">
+  <link rel="stylesheet" href="/static/style.css?v=14">
   <script src="/static/htmx.min.js"></script>
   <script src="/static/chart.min.js"></script>
 </head>
@@ -103,7 +103,10 @@
     <div class="card">
       <div class="card-head">
         <h2>Port scans</h2>
-        <span class="hint mono">TCP connection attempts to non-served ports &middot; <b id="scan-count">0</b> logged</span>
+        <div class="head-actions">
+          <a class="btn-mini" href="/data/download/scans">&#8595; CSV</a>
+          <span class="hint mono">non-served ports &middot; <b id="scan-count">0</b> logged</span>
+        </div>
       </div>
       <div class="feed-wrap" style="max-height:40vh">
         <table class="data">
@@ -166,6 +169,6 @@
   </section>
 
 </main>
-<script src="/static/app.js?v=13"></script>
+<script src="/static/app.js?v=14"></script>
 </body>
 </html>
