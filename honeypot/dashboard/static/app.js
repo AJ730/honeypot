@@ -222,10 +222,25 @@
     document.addEventListener("click", function (e) { if (!combo.contains(e.target)) close(); });
   })();
 
+  // ---------- port scans ----------
+  var scanBody = $("scan-table-body");
+  function applyScans(rows) {
+    if (!scanBody) return;
+    $("scan-count").textContent = rows.length;
+    if (!rows.length) return;
+    scanBody.innerHTML = rows.map(function (r) {
+      return "<tr><td class='mono dim nowrap'>" + esc(fmtTime(r.ts)) + "</td>" +
+        "<td class='mono'>" + esc(r.source_ip) + "</td>" +
+        "<td class='mono num'>" + esc(r.dest_port) + "</td></tr>";
+    }).join("");
+  }
+
   // ---------- pollers ----------
   function pollStats() { fetch("/stats").then(function (r) { return r.json(); }).then(function (s) { applyStats(s); applyCharts(s); }).catch(function () {}); }
   function pollSystem() { fetch("/system").then(function (r) { return r.json(); }).then(applySystem).catch(function () {}); }
-  pollStats(); pollSystem();
+  function pollScans() { fetch("/scans").then(function (r) { return r.json(); }).then(applyScans).catch(function () {}); }
+  pollStats(); pollSystem(); pollScans();
   setInterval(pollStats, 5000);
   setInterval(pollSystem, 3000);
+  setInterval(pollScans, 4000);
 })();

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>honeypot // ops console</title>
-  <link rel="stylesheet" href="/static/style.css?v=12">
+  <link rel="stylesheet" href="/static/style.css?v=13">
   <script src="/static/htmx.min.js"></script>
   <script src="/static/chart.min.js"></script>
 </head>
@@ -99,6 +99,21 @@
         </table>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Port scans</h2>
+        <span class="hint mono">TCP connection attempts to non-served ports &middot; <b id="scan-count">0</b> logged</span>
+      </div>
+      <div class="feed-wrap" style="max-height:40vh">
+        <table class="data">
+          <thead><tr><th>Time</th><th>Source IP</th><th class="num">Port</th></tr></thead>
+          <tbody id="scan-table-body">
+            <tr class="feed-empty"><td colspan="3">No port scans recorded yet. Probes to ports other than 11434 land here once the port is public.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
   <!-- ANALYTICS -->
@@ -151,6 +166,6 @@
   </section>
 
 </main>
-<script src="/static/app.js?v=12"></script>
+<script src="/static/app.js?v=13"></script>
 </body>
 </html>

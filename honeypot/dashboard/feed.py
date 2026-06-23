@@ -61,6 +61,26 @@ def fetch_recent(db_path: str, limit: int = 200) -> list[dict]:
         conn.close()
 
 
+def fetch_scans(db_path: str, limit: int = 200) -> list[dict]:
+    """Recent port-scan events (newest first), read-only. [] if unavailable."""
+    try:
+        conn = sqlite3.connect("file:%s?mode=ro" % db_path, uri=True)
+        conn.row_factory = sqlite3.Row
+    except Exception:
+        return []
+    try:
+        tables = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        if "scans" not in tables:
+            return []
+        cur = conn.execute("SELECT * FROM scans ORDER BY id DESC LIMIT ?", (limit,))
+        return [dict(r) for r in cur.fetchall()]
+    except Exception:
+        return []
+    finally:
+        conn.close()
+
+
 def _current_max_id(db_path: str) -> int:
     """Return the current maximum id in the requests table, or 0 if unavailable."""
     try:
@@ -90,6 +110,13 @@ def register_feed_routes(app: Any) -> None:
         except (TypeError, ValueError):
             pass
         return JSONResponse(fetch_recent(app.state.db_path, limit))
+
+    @app.get("/scans")
+    async def scans(request: Request):
+        if not app.state.logged_in(request):
+            return RedirectResponse("/login", status_code=303)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(fetch_scans(app.state.db_path, 200))
 
     @app.get("/feed")
     async def feed(request: Request):

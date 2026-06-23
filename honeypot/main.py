@@ -135,11 +135,20 @@ def create_app(
     async def _startup():
         if state["client"] is None:
             state["client"] = httpx.AsyncClient(timeout=300.0)
+        # Start the passive port-scan sniffer (best-effort; no-op without
+        # CAP_NET_RAW / on non-Linux). It records SYNs to non-served ports.
+        try:
+            from honeypot import scanlog
+            state["scan_stop"] = scanlog.start_sniffer(log, served_ports=(11434,))
+        except Exception:
+            state["scan_stop"] = None
 
     @app.on_event("shutdown")
     async def _shutdown():
         if state["client"] is not None:
             await state["client"].aclose()
+        if state.get("scan_stop") is not None:
+            state["scan_stop"].set()
 
     def record(req: Request, body: bytes, **kw):
         cfg = cfg_store.get()

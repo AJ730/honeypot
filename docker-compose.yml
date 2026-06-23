@@ -39,6 +39,10 @@ services:
     # true scanner IP is the point of the experiment). It reaches Ollama via the
     # loopback-published 127.0.0.1:11500.
     network_mode: host
+    # CAP_NET_RAW lets the honeypot open a raw socket to passively log port scans
+    # (TCP SYNs to non-served ports) across the VM's interfaces.
+    cap_add:
+      - NET_RAW
     volumes:
       - ./config.yaml:/app/config.yaml
       - honeypot_data:/app/data

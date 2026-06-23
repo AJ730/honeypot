@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 import threading
+import time
 
 FIELDS = [
     "ts", "source_ip", "dest_ip", "method", "endpoint", "model",
@@ -45,7 +46,31 @@ class LoggingStore:
             )
             """
         )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts TEXT, source_ip TEXT, dest_port INTEGER
+            )
+            """
+        )
         self._conn.commit()
+
+    def log_scan(self, source_ip: str, dest_port: int) -> None:
+        """Record a TCP connection attempt to a non-served port (a port scan)."""
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO scans (ts, source_ip, dest_port) VALUES (?, ?, ?)",
+                (ts, source_ip, int(dest_port)),
+            )
+            self._conn.commit()
+
+    def recent_scans(self, limit: int) -> list[dict]:
+        with self._lock:
+            cur = self._conn.execute(
+                "SELECT * FROM scans ORDER BY id DESC LIMIT ?", (limit,))
+            return [dict(r) for r in cur.fetchall()]
 
     def log(self, record: dict) -> None:
         row = {k: record.get(k) for k in FIELDS}
