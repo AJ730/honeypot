@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -12,10 +14,23 @@ _TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "
 
 
 def create_dashboard(config_path: str, db_path: str, ollama_url: str,
-                     password: str, secret: str) -> FastAPI:
+                     password: str, secret: str, client=None) -> FastAPI:
     if not password:
         raise RuntimeError("DASHBOARD_PASSWORD is required")
-    app = FastAPI()
+
+    _injected_client = client
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        if _injected_client is not None:
+            app.state.http = _injected_client
+        else:
+            app.state.http = httpx.AsyncClient(timeout=600)
+        yield
+        if _injected_client is None:
+            await app.state.http.aclose()
+
+    app = FastAPI(lifespan=lifespan)
     app.state.config_path = config_path
     app.state.db_path = db_path
     app.state.ollama_url = ollama_url
@@ -61,6 +76,9 @@ def create_dashboard(config_path: str, db_path: str, ollama_url: str,
 
     from honeypot.dashboard.feed import register_feed_routes
     register_feed_routes(app)
+
+    from honeypot.dashboard.models_api import register_models_routes
+    register_models_routes(app)
 
     return app
 
