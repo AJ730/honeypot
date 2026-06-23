@@ -1,17 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>honeypot // ops console</title>
-  <link rel="stylesheet" href="/static/style.css?v=7">
+  <link rel="stylesheet" href="/static/style.css?v=8">
   <script src="/static/htmx.min.js"></script>
   <script src="/static/chart.min.js"></script>
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
-    <span class="brand-mark">▚</span>
+    <span class="brand-mark">â–š</span>
     <span class="brand-text">honeypot<span class="brand-sub">ops console</span></span>
   </div>
 
@@ -24,7 +24,7 @@
   </nav>
 
   <div class="topbar-right">
-    <span class="status"><span class="dot live"></span><span class="status-text">online</span><span class="status-meta mono" id="uptime">—</span></span>
+    <span class="status"><span class="dot live"></span><span class="status-text">online</span><span class="status-meta mono" id="uptime">â€”</span></span>
     <form class="logout" method="post" action="/logout"><button type="submit" class="btn-ghost">Sign out</button></form>
   </div>
 </header>
@@ -44,7 +44,7 @@
 
     <div class="card">
       <div class="card-head"><h2>Routing mix</h2><span class="hint">share of probes served real vs faked vs blocked</span></div>
-      <div class="ribbon"><div class="seg real" style="width:0"></div><div class="seg fake" style="width:0"></div><div class="seg blocked" style="width:0"></div></div>
+      <div class="ribbon" id="routing-ribbon"><div class="seg real" style="width:0"></div><div class="seg fake" style="width:0"></div><div class="seg blocked" style="width:0"></div></div>
       <div class="ribbon-legend">
         <span><i class="swatch real"></i>real <b class="mono" id="rib-real">0</b></span>
         <span><i class="swatch fake"></i>faked <b class="mono" id="rib-fake">0</b></span>
@@ -53,25 +53,25 @@
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>System</h2><span class="hint mono" id="sys-cores">— cores</span></div>
+      <div class="card-head"><h2>System</h2><span class="hint mono" id="sys-cores">â€” cores</span></div>
       <div class="gauges">
         <div class="gauge">
-          <div class="gauge-top"><span>CPU</span><span class="mono gauge-pct" id="cpu-val">—</span></div>
+          <div class="gauge-top"><span>CPU</span><span class="mono gauge-pct" id="cpu-val">â€”</span></div>
           <div class="meter"><div class="meter-fill cpu" id="cpu-bar" style="width:0"></div></div>
-          <div class="gauge-sub mono" id="load-val">load —</div>
+          <div class="gauge-sub mono" id="load-val">load â€”</div>
         </div>
         <div class="gauge">
-          <div class="gauge-top"><span>Memory</span><span class="mono gauge-pct" id="mem-val">—</span></div>
+          <div class="gauge-top"><span>Memory</span><span class="mono gauge-pct" id="mem-val">â€”</span></div>
           <div class="meter"><div class="meter-fill mem" id="mem-bar" style="width:0"></div></div>
-          <div class="gauge-sub mono" id="mem-detail">—</div>
+          <div class="gauge-sub mono" id="mem-detail">â€”</div>
         </div>
         <div class="gauge">
-          <div class="gauge-top"><span>Disk</span><span class="mono gauge-pct" id="disk-val">—</span></div>
+          <div class="gauge-top"><span>Disk</span><span class="mono gauge-pct" id="disk-val">â€”</span></div>
           <div class="meter"><div class="meter-fill disk" id="disk-bar" style="width:0"></div></div>
-          <div class="gauge-sub mono" id="disk-detail">—</div>
+          <div class="gauge-sub mono" id="disk-detail">â€”</div>
         </div>
         <div class="gauge">
-          <div class="gauge-top"><span>Swap</span><span class="mono gauge-pct" id="swap-val">—</span></div>
+          <div class="gauge-top"><span>Swap</span><span class="mono gauge-pct" id="swap-val">â€”</span></div>
           <div class="meter"><div class="meter-fill swap" id="swap-bar" style="width:0"></div></div>
           <div class="gauge-sub mono">memory pressure</div>
         </div>
@@ -82,12 +82,12 @@
   <!-- LIVE -->
   <section class="tab-panel" id="tab-live">
     <div class="card">
-      <div class="card-head"><h2>Live traffic</h2><span class="hint"><span class="dot live"></span> streaming · newest first</span></div>
+      <div class="card-head"><h2>Live traffic</h2><span class="hint"><span class="dot live"></span> streaming Â· newest first</span></div>
       <div class="feed-wrap">
         <table class="data feed">
           <thead><tr><th>Time</th><th>Source IP</th><th>Endpoint</th><th>Model</th><th>Routed</th><th>Prompt</th></tr></thead>
           <tbody id="live-table-body">
-            <tr class="feed-empty"><td colspan="6">Waiting for the first probe — requests stream in here the moment they arrive.</td></tr>
+            <tr class="feed-empty"><td colspan="6">Waiting for the first probe â€” requests stream in here the moment they arrive.</td></tr>
           </tbody>
         </table>
       </div>
@@ -112,28 +112,28 @@
             hx-on::after-request="if(event.detail.successful) this.reset()">
         <div class="combo" id="model-combo">
           <input class="mono" type="text" name="name" id="model-input" required
-                 placeholder="pick or type a model — e.g. qwen2.5:3b"
+                 placeholder="pick or type a model â€” e.g. qwen2.5:3b"
                  autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false">
-          <span class="combo-caret">▾</span>
+          <span class="combo-caret">â–¾</span>
           <div class="combo-list" id="model-list-dd" role="listbox" hidden></div>
         </div>
         <button type="submit" class="btn-primary">Deploy model</button>
       </form>
       <p class="hint deploy-hint">Pulls run on the backend and may take minutes for large models. Installed models stay resident and serve concurrently.</p>
       <div id="pull-result"></div>
-      <div id="models-list" hx-get="/models" hx-trigger="load" hx-swap="innerHTML"><p class="dim">Loading models…</p></div>
+      <div id="models-list" hx-get="/models" hx-trigger="load" hx-swap="innerHTML"><p class="dim">Loading modelsâ€¦</p></div>
     </div>
   </section>
 
   <!-- CONFIG -->
   <section class="tab-panel" id="tab-config">
     <div class="card">
-      <div class="card-head"><h2>Config</h2><span class="hint mono">live · validated · hot-reloads the honeypot</span></div>
-      <div id="config-panel" hx-get="/config" hx-trigger="load" hx-swap="innerHTML"><p class="dim">Loading config…</p></div>
+      <div class="card-head"><h2>Config</h2><span class="hint mono">live Â· validated Â· hot-reloads the honeypot</span></div>
+      <div id="config-panel" hx-get="/config" hx-trigger="load" hx-swap="innerHTML"><p class="dim">Loading configâ€¦</p></div>
     </div>
   </section>
 
 </main>
-<script src="/static/app.js?v=7"></script>
+<script src="/static/app.js?v=8"></script>
 </body>
 </html>

@@ -54,10 +54,12 @@
     $("kpi-blocked").textContent = blocked.toLocaleString();
     $("kpi-ips").textContent = (s.top_source_ips || []).length;
     $("rib-real").textContent = real; $("rib-fake").textContent = fake; $("rib-blocked").textContent = blocked;
-    var sum = real + fake + blocked || 1, segs = document.querySelectorAll("#routing-ribbon .seg");
-    segs[0].style.width = (real / sum * 100) + "%";
-    segs[1].style.width = (fake / sum * 100) + "%";
-    segs[2].style.width = (blocked / sum * 100) + "%";
+    var sum = real + fake + blocked || 1, segs = document.querySelectorAll(".ribbon .seg");
+    if (segs.length >= 3) {
+      segs[0].style.width = (real / sum * 100) + "%";
+      segs[1].style.width = (fake / sum * 100) + "%";
+      segs[2].style.width = (blocked / sum * 100) + "%";
+    }
   }
 
   // ---------- system gauges ----------
