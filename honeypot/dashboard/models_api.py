@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -26,13 +28,13 @@ def register_models_routes(app) -> None:
         )
         ok = resp.status_code == 200
         status_msg = resp.json().get("status", "done") if ok else f"error {resp.status_code}"
-        html = (
+        result_html = (
             f'<div id="pull-result">'
-            f'<p>Pull <strong>{name}</strong>: {status_msg}</p>'
+            f'<p>Pull <strong>{html.escape(name)}</strong>: {html.escape(status_msg)}</p>'
             f'<p><em>Note: large pulls may take several minutes (v1 is a blocking call — no live progress bar).</em></p>'
             f'</div>'
         )
-        return HTMLResponse(html)
+        return HTMLResponse(result_html)
 
     @router.post("/models/delete", response_class=HTMLResponse)
     async def delete_model(request: Request, name: str = Form(...)):
@@ -54,7 +56,7 @@ def register_models_routes(app) -> None:
 
 def _models_table(models: list) -> str:
     rows = "".join(
-        f"<tr><td>{m.get('name', '')}</td></tr>" for m in models
+        f"<tr><td>{html.escape(m.get('name', ''))}</td></tr>" for m in models
     )
     return (
         f'<table id="models-table">'

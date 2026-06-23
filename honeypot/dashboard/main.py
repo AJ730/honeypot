@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hmac
+import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 import httpx
@@ -10,6 +13,26 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from honeypot.dashboard import auth
+
+_KNOWN_WEAK_SECRETS = {"please-change-me", "change-me-dev-secret", ""}
+
+
+def _resolve_secret(value: str) -> str:
+    """Return *value* unchanged if it is non-empty and not a known-weak placeholder.
+
+    Otherwise generate a random ephemeral secret and log a warning.
+    """
+    if value not in _KNOWN_WEAK_SECRETS:
+        return value
+    generated = secrets.token_urlsafe(32)
+    logging.getLogger(__name__).warning(
+        "DASHBOARD_SECRET is empty or a known-weak placeholder — "
+        "a random ephemeral secret has been generated. "
+        "Sessions will not survive a process restart. "
+        "Set DASHBOARD_SECRET to a strong secret to persist sessions."
+    )
+    return generated
+
 
 _TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
@@ -49,7 +72,7 @@ def create_dashboard(config_path: str, db_path: str, ollama_url: str,
 
     @app.post("/login")
     async def login(request: Request, password: str = Form(...)):
-        if password != app.state.password:
+        if not hmac.compare_digest(password, app.state.password):
             return _TEMPLATES.TemplateResponse(
                 request, "login.html", {"error": "Invalid password"}, status_code=401)
         resp = RedirectResponse("/", status_code=303)
@@ -94,7 +117,7 @@ if _password:
         os.environ.get("HONEYPOT_DB", "store.db"),
         os.environ.get("DASHBOARD_OLLAMA_URL", "http://ollama:11500"),
         _password,
-        os.environ.get("DASHBOARD_SECRET", "change-me-dev-secret"),
+        _resolve_secret(os.environ.get("DASHBOARD_SECRET", "")),
     )
 else:
     app = None

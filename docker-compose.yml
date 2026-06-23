@@ -56,7 +56,7 @@ services:
       - HONEYPOT_DB=/app/data/store.db
       - DASHBOARD_OLLAMA_URL=http://ollama:11500
       - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:?set DASHBOARD_PASSWORD}
-      - DASHBOARD_SECRET=${DASHBOARD_SECRET:-please-change-me}
+      - DASHBOARD_SECRET=${DASHBOARD_SECRET:-}
     command: ["uvicorn", "honeypot.dashboard.main:app", "--host", "0.0.0.0", "--port", "8080"]
     restart: unless-stopped
 

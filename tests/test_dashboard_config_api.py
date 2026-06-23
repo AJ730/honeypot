@@ -53,3 +53,16 @@ def test_post_invalid_config_rejected_and_file_unchanged(tmp_path):
         r = c.post("/config", data={"yaml_text": "fake_pct: 30\nmissing: everything\n"})
     assert r.status_code == 400
     assert cfg.read_text() == before  # untouched
+
+
+def test_xss_in_config_textarea_is_escaped(tmp_path):
+    """A </textarea> injection attempt must NOT break out of the textarea field."""
+    app, _ = build(tmp_path)
+    payload = "fake_pct: 30\n</textarea><script>alert(1)</script>"
+    with TestClient(app) as c:
+        login(c)
+        r = c.post("/config", data={"yaml_text": payload})
+    # The response may be 200 (valid yaml-ish) or 400 (invalid config); either way
+    # the raw <script> tag must NOT appear unescaped in the HTML body.
+    assert "<script>" not in r.text
+    assert "&lt;script&gt;" in r.text

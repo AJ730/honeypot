@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from itsdangerous import BadSignature, URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer
 
 COOKIE_NAME = "dash_session"
 _MAX_AGE = 60 * 60 * 12  # 12h
@@ -16,5 +16,5 @@ def verify_session(cookie: str | None, secret: str) -> bool:
     try:
         URLSafeTimedSerializer(secret).loads(cookie, max_age=_MAX_AGE)
         return True
-    except (BadSignature, Exception):
+    except Exception:
         return False
