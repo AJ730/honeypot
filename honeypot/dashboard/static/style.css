@@ -1,0 +1,116 @@
+/* style.css — Honeypot Admin dashboard styles */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  background: #f4f4f5;
+  color: #111827;
+}
+
+/* Header */
+header {
+  background: #1d4ed8;
+  color: #fff;
+  padding: .75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+header h1 { margin: 0; font-size: 1.2rem; }
+nav a {
+  color: #bfdbfe;
+  text-decoration: none;
+  margin-left: 1.25rem;
+  font-size: .95rem;
+}
+nav a:hover { color: #fff; }
+
+/* Logout button */
+form.logout { display: inline; }
+button.logout {
+  background: none;
+  border: none;
+  color: #bfdbfe;
+  cursor: pointer;
+  font-size: .95rem;
+  margin-left: 1.25rem;
+  padding: 0;
+}
+button.logout:hover { color: #fff; }
+
+/* Main layout */
+main { padding: 1.5rem; }
+
+/* Panels */
+.panel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.panel h2 { margin: 0 0 1rem; font-size: 1.1rem; color: #374151; }
+
+/* Config form */
+.config-form label {
+  display: block;
+  margin-bottom: .25rem;
+  font-size: .875rem;
+  color: #4b5563;
+}
+.config-form input[type=number],
+.config-form input[type=text] {
+  width: 100%;
+  padding: .4rem .6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+  margin-bottom: .75rem;
+}
+.config-form button[type=submit] {
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: .45rem 1rem;
+  cursor: pointer;
+  font-size: .95rem;
+}
+.config-form button[type=submit]:hover { background: #1e40af; }
+
+/* Models & Live tables */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+.data-table th, .data-table td {
+  text-align: left;
+  padding: .5rem .75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.data-table th { background: #f9fafb; color: #374151; font-weight: 600; }
+.data-table tr:hover td { background: #f0f9ff; }
+
+/* Charts grid */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+.chart-wrap canvas { max-height: 260px; }
+.chart-wrap h3 { margin: 0 0 .5rem; font-size: .95rem; color: #4b5563; }
+
+/* Status badges */
+.badge {
+  display: inline-block;
+  padding: .15rem .45rem;
+  border-radius: 9999px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.badge-real    { background: #dcfce7; color: #166534; }
+.badge-fake    { background: #fef3c7; color: #92400e; }
+.badge-blocked { background: #fee2e2; color: #991b1b; }

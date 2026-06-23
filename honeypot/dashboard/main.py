@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from honeypot.dashboard import auth
@@ -79,6 +80,9 @@ def create_dashboard(config_path: str, db_path: str, ollama_url: str,
 
     from honeypot.dashboard.models_api import register_models_routes
     register_models_routes(app)
+
+    _static_dir = os.path.join(os.path.dirname(__file__), "static")
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
     return app
 
