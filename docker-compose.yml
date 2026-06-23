@@ -7,6 +7,11 @@ services:
       - "127.0.0.1:11500:11500"
     environment:
       - OLLAMA_HOST=0.0.0.0:11500
+      # Keep multiple models resident and serving concurrently so a multi-model
+      # honeypot responds fast without reload churn (CPU box: tune to RAM headroom).
+      - OLLAMA_MAX_LOADED_MODELS=4
+      - OLLAMA_NUM_PARALLEL=4
+      - OLLAMA_KEEP_ALIVE=-1
     volumes:
       - ollama_models:/root/.ollama
     restart: unless-stopped
@@ -51,10 +56,12 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml
       - honeypot_data:/app/data
+      - /:/host:ro   # read-only host root so the System panel reports the VM's real disk
     environment:
       - HONEYPOT_CONFIG=/app/config.yaml
       - HONEYPOT_DB=/app/data/store.db
       - DASHBOARD_OLLAMA_URL=http://ollama:11500
+      - DASHBOARD_DISK_PATH=/host
       - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:?set DASHBOARD_PASSWORD}
       - DASHBOARD_SECRET=${DASHBOARD_SECRET:-}
     command: ["uvicorn", "honeypot.dashboard.main:app", "--host", "0.0.0.0", "--port", "8080"]

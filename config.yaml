@@ -19,6 +19,12 @@ guardrail_patterns:
   - "credit card dump"
   - "exploit kit"
 fake_responses:
-  - "I'm a large language model and I'm happy to help. Could you give me a bit more detail about what you're looking for?"
-  - "Sure — here's a high-level overview. Let me know if you'd like me to go deeper on any part."
+  - "Sure — happy to help with that. To give you the most useful answer, could you share a bit more about your setup and what you're trying to achieve?"
+  - "Good question. At a high level, there are a few ways to approach this, each with trade-offs. Which constraints matter most to you — speed, simplicity, or flexibility?"
+  - "Here's a concise summary. Let me know if you'd like me to expand on any specific part or walk through an example."
+  - "I can help with that. Before I dive in: are you looking for a quick overview, or a step-by-step walkthrough with code?"
+  - "That depends on the context. Generally speaking, the standard approach is to start simple and iterate. Want me to outline a minimal version first?"
+  - "Absolutely. The short answer is yes — though the details vary by version and platform. What environment are you working in?"
+  - "Let me think through that. There are a couple of common pitfalls worth avoiding here; I can flag them as we go if that's helpful."
+  - "Happy to break that down. Could you clarify which part you'd like me to focus on so I don't overload you with detail?"
 max_body_bytes: 65536

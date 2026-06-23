@@ -1,111 +1,163 @@
-/* app.js — Live feed (SSE) + Analytics (Chart.js) wiring */
-
+/* honeypot ops console — telemetry wiring: KPIs, system gauges, live feed, charts. */
 (function () {
   "use strict";
 
-  /* ---- Live Feed (EventSource) ---- */
-  var liveBody = document.getElementById("live-table-body");
+  var C = {
+    real: "#36C6A0", fake: "#E0A33E", blocked: "#E0556E", accent: "#5B8DEF",
+    grid: "rgba(42,52,80,.6)", tick: "#8A97B5", text: "#E6ECF7"
+  };
 
-  if (liveBody) {
-    var es = new EventSource("/feed");
+  // ---------- helpers ----------
+  function $(id) { return document.getElementById(id); }
+  function fmtBytes(n) {
+    if (n == null) return "—";
+    var u = ["B", "KB", "MB", "GB", "TB"], i = 0;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return n.toFixed(1) + " " + u[i];
+  }
+  function fmtUptime(s) {
+    if (s == null) return "—";
+    var d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d) return d + "d " + h + "h"; if (h) return h + "h " + m + "m"; return m + "m";
+  }
+  function fmtTime(ts) {
+    if (!ts) return new Date().toLocaleTimeString();
+    var d = new Date(ts.replace(" ", "T"));
+    return isNaN(d) ? ts : d.toLocaleTimeString();
+  }
+  function meterClass(el, pct) { el.classList.toggle("hot", pct >= 85); el.style.width = Math.min(100, pct || 0) + "%"; }
 
-    es.addEventListener("message", function (evt) {
-      var data;
-      try { data = JSON.parse(evt.data); } catch (e) { return; }
-      var tr = document.createElement("tr");
-      var cells = [
-        data.ts || "",
-        data.source_ip || "",
-        data.model || "",
-        data.endpoint || "",
-        data.routed || "",
-      ];
-      cells.forEach(function (text) {
-        var td = document.createElement("td");
-        td.textContent = text;
-        tr.appendChild(td);
-      });
-      liveBody.insertBefore(tr, liveBody.firstChild);
-      // Keep table to last 100 rows
-      while (liveBody.rows.length > 100) {
-        liveBody.removeChild(liveBody.lastChild);
-      }
+  // ---------- nav active state on scroll ----------
+  var sections = ["overview", "system", "live", "analytics", "models", "config"];
+  var links = {};
+  document.querySelectorAll(".nav-link").forEach(function (a) { links[a.getAttribute("href").slice(1)] = a; });
+  function onScroll() {
+    var best = sections[0], top = 120;
+    sections.forEach(function (id) {
+      var el = $(id); if (!el) return;
+      if (el.getBoundingClientRect().top <= top) best = id;
     });
+    Object.keys(links).forEach(function (id) { links[id].classList.toggle("active", id === best); });
+  }
+  window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
 
-    es.onerror = function () {
-      // Reconnect is automatic for EventSource; log only on console
-      console.warn("SSE connection error — browser will retry.");
-    };
+  // ---------- KPIs + routing ribbon ----------
+  function applyStats(s) {
+    var routed = s.by_routed || {};
+    var real = routed.real || 0, fake = routed.fake || 0, blocked = routed.blocked || 0;
+    var tot = s.total_requests || 0;
+    $("kpi-total").textContent = tot.toLocaleString();
+    $("kpi-real").textContent = real.toLocaleString();
+    $("kpi-fake").textContent = fake.toLocaleString();
+    $("kpi-blocked").textContent = blocked.toLocaleString();
+    $("kpi-ips").textContent = (s.top_source_ips || []).length;
+    $("rib-real").textContent = real; $("rib-fake").textContent = fake; $("rib-blocked").textContent = blocked;
+    var sum = real + fake + blocked || 1, segs = document.querySelectorAll("#routing-ribbon .seg");
+    segs[0].style.width = (real / sum * 100) + "%";
+    segs[1].style.width = (fake / sum * 100) + "%";
+    segs[2].style.width = (blocked / sum * 100) + "%";
   }
 
-  /* ---- Analytics (Chart.js) ---- */
-  function renderCharts(stats) {
-    // Requests over time (line chart)
-    var timeCtx = document.getElementById("chart-time");
-    if (timeCtx && stats.requests_over_time) {
-      var timeLabels = stats.requests_over_time.map(function (r) { return r.bucket; });
-      var timeCounts = stats.requests_over_time.map(function (r) { return r.count; });
-      new Chart(timeCtx, {
-        type: "line",
-        data: {
-          labels: timeLabels,
-          datasets: [{
-            label: "Requests/hour",
-            data: timeCounts,
-            fill: false,
-            borderColor: "#1d4ed8",
-            tension: 0.1,
-          }],
-        },
-        options: { responsive: true, plugins: { legend: { display: true } } },
-      });
+  // ---------- system gauges ----------
+  function applySystem(d) {
+    if (!d || !d.available) { $("sys-cores").textContent = "metrics unavailable"; return; }
+    if (d.cpu_count != null) $("sys-cores").textContent = d.cpu_count + " cores";
+    if (d.cpu_percent != null) { $("cpu-val").textContent = d.cpu_percent.toFixed(0) + "%"; meterClass($("cpu-bar"), d.cpu_percent); }
+    if (d.load_avg) $("load-val").textContent = "load " + d.load_avg.map(function (x) { return x.toFixed(2); }).join("  ");
+    if (d.mem) {
+      $("mem-val").textContent = d.mem.percent.toFixed(0) + "%"; meterClass($("mem-bar"), d.mem.percent);
+      $("mem-detail").textContent = fmtBytes(d.mem.used) + " / " + fmtBytes(d.mem.total) + " · " + fmtBytes(d.mem.available) + " free";
     }
-
-    // Routing breakdown (bar chart)
-    var routeCtx = document.getElementById("chart-routed");
-    if (routeCtx && stats.by_routed) {
-      var routed = stats.by_routed;
-      new Chart(routeCtx, {
-        type: "bar",
-        data: {
-          labels: ["real", "fake", "blocked"],
-          datasets: [{
-            label: "Routing",
-            data: [routed.real || 0, routed.fake || 0, routed.blocked || 0],
-            backgroundColor: ["#16a34a", "#d97706", "#dc2626"],
-          }],
-        },
-        options: { responsive: true, plugins: { legend: { display: false } } },
-      });
+    if (d.disk) {
+      $("disk-val").textContent = d.disk.percent.toFixed(0) + "%"; meterClass($("disk-bar"), d.disk.percent);
+      $("disk-detail").textContent = fmtBytes(d.disk.used) + " / " + fmtBytes(d.disk.total) + " · " + fmtBytes(d.disk.free) + " free";
     }
-
-    // Top endpoints (bar chart)
-    var epCtx = document.getElementById("chart-endpoints");
-    if (epCtx && stats.by_endpoint && stats.by_endpoint.length) {
-      new Chart(epCtx, {
-        type: "bar",
-        data: {
-          labels: stats.by_endpoint.map(function (r) { return r.endpoint; }),
-          datasets: [{
-            label: "Hits",
-            data: stats.by_endpoint.map(function (r) { return r.count; }),
-            backgroundColor: "#6366f1",
-          }],
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          plugins: { legend: { display: false } },
-        },
-      });
-    }
+    if (d.swap) { $("swap-val").textContent = d.swap.percent.toFixed(0) + "%"; meterClass($("swap-bar"), d.swap.percent); }
+    if (d.uptime_seconds != null) $("uptime").textContent = "up " + fmtUptime(d.uptime_seconds);
   }
 
-  var analyticsSection = document.getElementById("analytics");
-  if (analyticsSection) {
-    fetch("/stats")
-      .then(function (r) { return r.json(); })
-      .then(renderCharts)
-      .catch(function (err) { console.error("Failed to load /stats:", err); });
+  // ---------- live feed (SSE) ----------
+  var body = $("live-table-body"), MAX = 150;
+  function badge(r) { return '<span class="badge ' + (r || "") + '">' + (r || "—") + "</span>"; }
+  function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : s; return d.innerHTML; }
+  function addRow(row) {
+    var empty = body.querySelector(".feed-empty"); if (empty) empty.remove();
+    var tr = document.createElement("tr");
+    tr.className = "new r-" + (row.routed || "");
+    tr.innerHTML =
+      "<td class='mono dim'>" + esc(fmtTime(row.ts)) + "</td>" +
+      "<td class='mono'>" + esc(row.source_ip) + "</td>" +
+      "<td class='mono'>" + esc(row.endpoint) + "</td>" +
+      "<td class='mono dim'>" + esc(row.model || "—") + "</td>" +
+      "<td>" + badge(row.routed) + "</td>";
+    body.insertBefore(tr, body.firstChild);
+    while (body.children.length > MAX) body.removeChild(body.lastChild);
   }
+  try {
+    var es = new EventSource("/feed");
+    es.onmessage = function (e) { try { addRow(JSON.parse(e.data)); } catch (x) {} };
+  } catch (x) {}
+
+  // ---------- charts ----------
+  var charts = {};
+  if (window.Chart) {
+    Chart.defaults.color = C.tick; Chart.defaults.font.family = "'JetBrains Mono', monospace"; Chart.defaults.font.size = 11;
+  }
+  function mkLine(id) {
+    return new Chart($(id), { type: "line",
+      data: { labels: [], datasets: [{ data: [], borderColor: C.accent, backgroundColor: "rgba(91,141,239,.12)", fill: true, tension: .3, pointRadius: 0, borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: C.grid }, ticks: { maxTicksLimit: 6 } }, y: { grid: { color: C.grid }, beginAtZero: true, ticks: { precision: 0 } } } } });
+  }
+  function mkDoughnut(id) {
+    return new Chart($(id), { type: "doughnut",
+      data: { labels: ["real", "faked", "blocked"], datasets: [{ data: [0, 0, 0], backgroundColor: [C.real, C.fake, C.blocked], borderColor: "#161D2E", borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: "62%", plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 12 } } } } });
+  }
+  function mkBar(id, color) {
+    return new Chart($(id), { type: "bar",
+      data: { labels: [], datasets: [{ data: [], backgroundColor: color, borderRadius: 4, barThickness: 14 }] },
+      options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: C.grid }, beginAtZero: true, ticks: { precision: 0 } }, y: { grid: { display: false } } } } });
+  }
+  if (window.Chart) {
+    charts.time = mkLine("chart-time");
+    charts.routing = mkDoughnut("chart-routing");
+    charts.endpoints = mkBar("chart-endpoints", C.accent);
+    charts.ips = mkBar("chart-ips", "#8a7bef");
+  }
+  function applyCharts(s) {
+    if (!window.Chart) return;
+    var t = s.requests_over_time || [];
+    charts.time.data.labels = t.map(function (d) { return (d.bucket || "").slice(11, 16) || d.bucket; });
+    charts.time.data.datasets[0].data = t.map(function (d) { return d.count; });
+    charts.time.update("none");
+    var r = s.by_routed || {};
+    charts.routing.data.datasets[0].data = [r.real || 0, r.fake || 0, r.blocked || 0];
+    charts.routing.update("none");
+    var ep = (s.by_endpoint || []).slice(0, 8);
+    charts.endpoints.data.labels = ep.map(function (d) { return d.endpoint; });
+    charts.endpoints.data.datasets[0].data = ep.map(function (d) { return d.count; });
+    charts.endpoints.update("none");
+    var ips = (s.top_source_ips || []).slice(0, 8);
+    charts.ips.data.labels = ips.map(function (d) { return d.source_ip; });
+    charts.ips.data.datasets[0].data = ips.map(function (d) { return d.count; });
+    charts.ips.update("none");
+  }
+
+  // ---------- model count KPI (from the models partial) ----------
+  function updateModelCount() {
+    var rows = document.querySelectorAll("#models-list table.data tbody tr");
+    if (rows.length) $("kpi-models").textContent = rows.length;
+  }
+  document.body.addEventListener("htmx:afterSwap", function (e) {
+    if (e.target && (e.target.id === "models-list" || e.target.id === "models-panel")) updateModelCount();
+  });
+
+  // ---------- pollers ----------
+  function pollStats() { fetch("/stats").then(function (r) { return r.json(); }).then(function (s) { applyStats(s); applyCharts(s); }).catch(function () {}); }
+  function pollSystem() { fetch("/system").then(function (r) { return r.json(); }).then(applySystem).catch(function () {}); }
+  pollStats(); pollSystem();
+  setInterval(pollStats, 5000);
+  setInterval(pollSystem, 3000);
 })();

@@ -46,11 +46,11 @@ def register_config_routes(app):
 def _form(text: str, ok: str | None, err: str | None) -> str:
     msg = ""
     if ok:
-        msg = f'<p style="color:green">{html.escape(ok)}</p>'
+        msg = f'<div class="cfg-msg ok">{html.escape(ok)}</div>'
     if err:
-        msg = f'<p style="color:red">Error: {html.escape(err)}</p>'
+        msg = f'<div class="cfg-msg err">Rejected — {html.escape(err)}</div>'
     return (
-        f'{msg}<form hx-post="/config" hx-target="#config-panel">'
-        f'<textarea name="yaml_text" rows="20" cols="80">{html.escape(text)}</textarea><br>'
-        f'<button type="submit">Save config</button></form>'
+        f'{msg}<form hx-post="/config" hx-target="#config-panel" hx-swap="innerHTML">'
+        f'<textarea name="yaml_text" spellcheck="false">{html.escape(text)}</textarea>'
+        f'<button type="submit">Save &amp; reload</button></form>'
     )

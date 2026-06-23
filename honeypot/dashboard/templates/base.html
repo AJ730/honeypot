@@ -1,85 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Honeypot Admin</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>honeypot // ops console</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/htmx.min.js"></script>
   <script src="/static/chart.min.js"></script>
 </head>
 <body>
-  <header>
-    <h1>Honeypot Admin</h1>
-    <nav>
-      <a href="#config">Config</a>
-      <a href="#models">Models</a>
-      <a href="#live">Live</a>
-      <a href="#analytics">Analytics</a>
-      <form class="logout" method="post" action="/logout">
-        <button class="logout" type="submit">Logout</button>
-      </form>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">▚</span>
+      <span class="brand-text">honeypot<span class="brand-sub">ops console</span></span>
+    </div>
+    <nav class="nav">
+      <a href="#overview" class="nav-link">Overview</a>
+      <a href="#system" class="nav-link">System</a>
+      <a href="#live" class="nav-link">Live traffic</a>
+      <a href="#analytics" class="nav-link">Analytics</a>
+      <a href="#models" class="nav-link">Models</a>
+      <a href="#config" class="nav-link">Config</a>
     </nav>
-  </header>
+    <form class="logout" method="post" action="/logout">
+      <button type="submit" class="btn-ghost">Sign out</button>
+    </form>
+  </aside>
 
-  <main>
-
-    <!-- Config Panel -->
-    <div id="config" class="panel">
-      <h2>Config</h2>
-      <div hx-get="/config" hx-trigger="load" hx-swap="innerHTML">
-        <p>Loading config&hellip;</p>
+  <main class="main">
+    <header class="topbar">
+      <div class="status">
+        <span class="dot live"></span>
+        <span class="status-text">decoy online</span>
+        <span class="status-meta mono" id="uptime">—</span>
       </div>
-    </div>
-
-    <!-- Models Panel -->
-    <div id="models" class="panel">
-      <h2>Models</h2>
-      <div hx-get="/models" hx-trigger="load" hx-swap="innerHTML">
-        <p>Loading models&hellip;</p>
-      </div>
-    </div>
-
-    <!-- Live Feed Panel -->
-    <div id="live" class="panel">
-      <h2>Live</h2>
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Source IP</th>
-            <th>Model</th>
-            <th>Endpoint</th>
-            <th>Routed</th>
-          </tr>
-        </thead>
-        <tbody id="live-table-body">
-          <!-- Rows inserted by app.js EventSource -->
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Analytics Panel -->
-    <div id="analytics" class="panel">
-      <h2>Analytics</h2>
-      <div class="charts-grid">
-        <div class="chart-wrap">
-          <h3>Requests over time</h3>
-          <canvas id="chart-time"></canvas>
+      <div class="ribbon-wrap" title="Live routing mix: real vs faked vs blocked">
+        <div class="ribbon" id="routing-ribbon">
+          <div class="seg real" style="width:0"></div>
+          <div class="seg fake" style="width:0"></div>
+          <div class="seg blocked" style="width:0"></div>
         </div>
-        <div class="chart-wrap">
-          <h3>Routing breakdown</h3>
-          <canvas id="chart-routed"></canvas>
-        </div>
-        <div class="chart-wrap">
-          <h3>Top endpoints</h3>
-          <canvas id="chart-endpoints"></canvas>
+        <div class="ribbon-legend">
+          <span><i class="swatch real"></i>real <b class="mono" id="rib-real">0</b></span>
+          <span><i class="swatch fake"></i>faked <b class="mono" id="rib-fake">0</b></span>
+          <span><i class="swatch blocked"></i>blocked <b class="mono" id="rib-blocked">0</b></span>
         </div>
       </div>
-    </div>
+    </header>
 
+    <section id="overview" class="kpis">
+      <div class="kpi"><div class="kpi-num mono" id="kpi-total">0</div><div class="kpi-label">requests</div></div>
+      <div class="kpi accent-real"><div class="kpi-num mono" id="kpi-real">0</div><div class="kpi-label">real</div></div>
+      <div class="kpi accent-fake"><div class="kpi-num mono" id="kpi-fake">0</div><div class="kpi-label">faked</div></div>
+      <div class="kpi accent-blocked"><div class="kpi-num mono" id="kpi-blocked">0</div><div class="kpi-label">blocked</div></div>
+      <div class="kpi"><div class="kpi-num mono" id="kpi-ips">0</div><div class="kpi-label">source IPs</div></div>
+      <div class="kpi"><div class="kpi-num mono" id="kpi-models">0</div><div class="kpi-label">models live</div></div>
+    </section>
+
+    <section id="system" class="panel">
+      <div class="panel-head"><h2>System</h2><span class="panel-tag mono" id="sys-cores">— cores</span></div>
+      <div class="gauges">
+        <div class="gauge">
+          <div class="gauge-top"><span>CPU</span><span class="mono" id="cpu-val">—</span></div>
+          <div class="meter"><div class="meter-fill cpu" id="cpu-bar" style="width:0"></div></div>
+          <div class="gauge-sub mono" id="load-val">load —</div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-top"><span>Memory</span><span class="mono" id="mem-val">—</span></div>
+          <div class="meter"><div class="meter-fill mem" id="mem-bar" style="width:0"></div></div>
+          <div class="gauge-sub mono" id="mem-detail">—</div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-top"><span>Disk</span><span class="mono" id="disk-val">—</span></div>
+          <div class="meter"><div class="meter-fill disk" id="disk-bar" style="width:0"></div></div>
+          <div class="gauge-sub mono" id="disk-detail">—</div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-top"><span>Swap</span><span class="mono" id="swap-val">—</span></div>
+          <div class="meter"><div class="meter-fill swap" id="swap-bar" style="width:0"></div></div>
+          <div class="gauge-sub mono">memory pressure</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="live" class="panel">
+      <div class="panel-head"><h2>Live traffic</h2><span class="panel-tag mono"><span class="dot live"></span> streaming</span></div>
+      <div class="feed-wrap">
+        <table class="data feed">
+          <thead><tr><th>Time</th><th>Source IP</th><th>Endpoint</th><th>Model</th><th>Routed</th></tr></thead>
+          <tbody id="live-table-body">
+            <tr class="feed-empty"><td colspan="5">Waiting for the first probe — requests stream in here as they arrive.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="analytics" class="panel">
+      <div class="panel-head"><h2>Analytics</h2></div>
+      <div class="charts">
+        <div class="chart-card"><h3>Requests over time</h3><div class="canvas-box"><canvas id="chart-time"></canvas></div></div>
+        <div class="chart-card"><h3>Routing mix</h3><div class="canvas-box"><canvas id="chart-routing"></canvas></div></div>
+        <div class="chart-card"><h3>Top endpoints</h3><div class="canvas-box"><canvas id="chart-endpoints"></canvas></div></div>
+        <div class="chart-card"><h3>Top source IPs</h3><div class="canvas-box"><canvas id="chart-ips"></canvas></div></div>
+      </div>
+    </section>
+
+    <section id="models" class="panel">
+      <div id="models-panel">
+        <div class="panel-head"><h2>Models</h2><span class="panel-tag mono">backend: ollama</span></div>
+        <form class="deploy" hx-post="/models/pull" hx-target="#pull-result" hx-swap="innerHTML"
+              hx-on::after-request="if(event.detail.successful) this.reset()">
+          <input class="mono" type="text" name="name" placeholder="model to deploy — e.g. llama3.2:3b, qwen2.5:3b"
+                 autocomplete="off" spellcheck="false">
+          <button type="submit" class="btn-primary">Deploy</button>
+        </form>
+        <div id="pull-result"></div>
+        <div id="models-list" hx-get="/models" hx-trigger="load" hx-swap="innerHTML">
+          <p class="dim">Loading models…</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="config" class="panel">
+      <div class="panel-head"><h2>Config</h2><span class="panel-tag mono">live · hot-reloads honeypot</span></div>
+      <div id="config-panel" hx-get="/config" hx-trigger="load" hx-swap="innerHTML">
+        <p class="dim">Loading config…</p>
+      </div>
+    </section>
   </main>
-
-  <script src="/static/app.js"></script>
+</div>
+<script src="/static/app.js"></script>
 </body>
 </html>
