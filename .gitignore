@@ -6,3 +6,6 @@ store.db
 events.jsonl
 config.local.yaml
 .env
+/.claude/
+/docs/
+/.superpowers/

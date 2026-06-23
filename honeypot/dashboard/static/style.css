@@ -147,6 +147,14 @@ table.data tbody tr:hover { background: rgba(91,141,239,.06); }
 .feed-empty td { color: var(--dim); text-align: center; padding: 34px; }
 @keyframes flash { from { background: rgba(91,141,239,.2);} to { background: transparent; } }
 .feed tr.new { animation: flash 1.1s ease-out; }
+.nowrap { white-space: nowrap; }
+.prompt-col { max-width: 420px; }
+.prompt-text {
+  display: inline-block; max-width: 380px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; vertical-align: bottom; color: var(--muted);
+  font-family: var(--mono); font-size: 12px; cursor: help;
+}
+.trip { color: var(--blocked); font-size: 11px; margin-left: 6px; }
 .badge { font-family: var(--mono); font-size: 11px; padding: 2px 9px; border-radius: 6px; font-weight: 600; }
 .badge.real { color: var(--real); background: rgba(54,198,160,.13); }
 .badge.fake { color: var(--fake); background: rgba(232,178,76,.14); }

@@ -241,7 +241,15 @@ def create_app(
         stream = parsed.get("stream", True)
         do_stream = stream is not False  # only False (the boolean) disables streaming
 
+        # Fast keyword pre-filter first (instant, no model call), then the LLM
+        # safety classifier if enabled. The LLM check fails open (returns None)
+        # so a slow/missing classifier never takes the honeypot down.
         trip = guardrails.check(prompt, cfg.guardrail_patterns)
+        if trip is None and getattr(cfg, "llm_guard_enabled", False):
+            trip = await guardrails.llm_check(
+                state["client"], cfg.real_ollama_url,
+                getattr(cfg, "llm_guard_model", "llama-guard3:1b"), prompt,
+            )
         if trip is not None:
             if is_chat:
                 refusal_data = guardrails.refusal_chat_response(model)

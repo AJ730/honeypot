@@ -82,16 +82,35 @@
   var body = $("live-table-body"), MAX = 150;
   function badge(r) { return '<span class="badge ' + (r || "") + '">' + (r || "—") + "</span>"; }
   function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : s; return d.innerHTML; }
+  function extractPrompt(rawBody) {
+    if (!rawBody) return "";
+    try {
+      var b = JSON.parse(rawBody);
+      if (b.prompt != null) return String(b.prompt);
+      if (Array.isArray(b.messages)) {
+        var users = b.messages.filter(function (m) { return m && m.role === "user"; });
+        if (users.length) return String(users[users.length - 1].content || "");
+      }
+      if (b.input != null) return String(b.input);   // /api/embed
+      return "";
+    } catch (e) { return ""; }
+  }
   function addRow(row) {
     var empty = body.querySelector(".feed-empty"); if (empty) empty.remove();
     var tr = document.createElement("tr");
     tr.className = "new r-" + (row.routed || "");
+    var prompt = extractPrompt(row.request_body);
+    var trip = row.guardrail_trip ? ' <span class="trip mono">⛔ ' + esc(row.guardrail_trip) + "</span>" : "";
+    var promptCell = prompt
+      ? '<span class="prompt-text" title="' + esc(prompt) + '">' + esc(prompt) + "</span>" + trip
+      : '<span class="dim">—</span>' + trip;
     tr.innerHTML =
-      "<td class='mono dim'>" + esc(fmtTime(row.ts)) + "</td>" +
+      "<td class='mono dim nowrap'>" + esc(fmtTime(row.ts)) + "</td>" +
       "<td class='mono'>" + esc(row.source_ip) + "</td>" +
       "<td class='mono'>" + esc(row.endpoint) + "</td>" +
       "<td class='mono dim'>" + esc(row.model || "—") + "</td>" +
-      "<td>" + badge(row.routed) + "</td>";
+      "<td>" + badge(row.routed) + "</td>" +
+      "<td class='prompt-col'>" + promptCell + "</td>";
     body.insertBefore(tr, body.firstChild);
     while (body.children.length > MAX) body.removeChild(body.lastChild);
   }

@@ -28,3 +28,8 @@ fake_responses:
   - "Let me think through that. There are a couple of common pitfalls worth avoiding here; I can flag them as we go if that's helpful."
   - "Happy to break that down. Could you clarify which part you'd like me to focus on so I don't overload you with detail?"
 max_body_bytes: 65536
+# LLM safety classifier. Enable after pulling the model (Models tab):
+#   llm_guard_model must be installed on the backend, e.g. llama-guard3:1b
+# Keyword patterns above always run as a fast pre-filter; this adds an LLM check.
+llm_guard_enabled: false
+llm_guard_model: "llama-guard3:1b"

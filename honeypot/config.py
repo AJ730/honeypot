@@ -19,6 +19,11 @@ class Config:
     guardrail_patterns: list[str]
     fake_responses: list[str]
     max_body_bytes: int
+    # LLM safety classifier (optional). When enabled, prompts that pass the fast
+    # keyword filter are also screened by an LLM classifier (e.g. Llama Guard 3)
+    # via the real Ollama backend. Fails open if the classifier is unavailable.
+    llm_guard_enabled: bool = False
+    llm_guard_model: str = "llama-guard3:1b"
 
 
 class ConfigStore:
