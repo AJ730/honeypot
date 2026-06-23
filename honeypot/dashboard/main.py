@@ -107,6 +107,9 @@ def create_dashboard(config_path: str, db_path: str, ollama_url: str,
     from honeypot.dashboard.system import register_system_routes
     register_system_routes(app)
 
+    from honeypot.dashboard.data_api import register_data_routes
+    register_data_routes(app)
+
     _static_dir = os.path.join(os.path.dirname(__file__), "static")
     app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 

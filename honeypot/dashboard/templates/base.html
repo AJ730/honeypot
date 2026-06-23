@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>honeypot // ops console</title>
-  <link rel="stylesheet" href="/static/style.css?v=8">
+  <link rel="stylesheet" href="/static/style.css?v=9">
   <script src="/static/htmx.min.js"></script>
   <script src="/static/chart.min.js"></script>
 </head>
@@ -131,9 +131,19 @@
       <div class="card-head"><h2>Config</h2><span class="hint mono">live &middot; validated &middot; hot-reloads the honeypot</span></div>
       <div id="config-panel" hx-get="/config" hx-trigger="load" hx-swap="innerHTML"><p class="dim">Loading config&hellip;</p></div>
     </div>
+
+    <div class="card danger-zone">
+      <div class="card-head"><h2>Danger zone</h2></div>
+      <p class="hint">Permanently delete every captured request log from the backend (SQLite + JSONL). This cannot be undone.</p>
+      <button class="btn-danger-solid" hx-post="/data/clear" hx-target="#clear-result" hx-swap="innerHTML"
+              hx-confirm="Delete ALL logged data? This permanently wipes the backend store and cannot be undone.">
+        Clear all logged data
+      </button>
+      <div id="clear-result"></div>
+    </div>
   </section>
 
 </main>
-<script src="/static/app.js?v=8"></script>
+<script src="/static/app.js?v=9"></script>
 </body>
 </html>
