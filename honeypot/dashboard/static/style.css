@@ -167,6 +167,21 @@ table.data tbody tr:hover { background: rgba(91,141,239,.06); }
 
 /* ---- Models ---- */
 .deploy { display: flex; gap: 10px; }
+.combo { position: relative; flex: 1; }
+.combo input {
+  width: 100%; background: #0c1120; border: 1px solid var(--border); color: var(--text);
+  border-radius: 10px; padding: 12px 15px; font-size: 13.5px;
+}
+.combo-caret { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--dim); pointer-events: none; font-size: 11px; }
+.combo-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 40;
+  background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 12px;
+  box-shadow: 0 24px 48px -20px rgba(0,0,0,.85); max-height: 300px; overflow-y: auto; padding: 6px;
+}
+.combo-item { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 9px 12px; border-radius: 8px; cursor: pointer; }
+.combo-item:hover, .combo-item.hl { background: rgba(91,141,239,.15); }
+.combo-v { color: var(--text); font-size: 13px; font-family: var(--mono); }
+.combo-l { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 .deploy input {
   flex: 1; background: #0c1120; border: 1px solid var(--border); color: var(--text);
   border-radius: 10px; padding: 12px 15px; font-size: 13.5px;

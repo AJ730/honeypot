@@ -175,6 +175,47 @@
     if (e.target && (e.target.id === "models-list" || e.target.id === "models-panel")) updateModelCount();
   });
 
+  // ---------- model combobox (custom, dark, typeahead) ----------
+  (function () {
+    var combo = $("model-combo"); if (!combo) return;
+    var input = $("model-input"), dd = $("model-list-dd");
+    var MODELS = [
+      ["qwen2.5:3b", "Qwen2.5 3B · fast tier"], ["qwen2.5:7b", "Qwen2.5 7B · default tier"],
+      ["qwen2.5:14b", "Qwen2.5 14B · larger"], ["llama3.2:1b", "Llama 3.2 1B · tiny"],
+      ["llama3.2:3b", "Llama 3.2 3B"], ["llama3.1:8b", "Llama 3.1 8B"],
+      ["gemma2:2b", "Gemma 2 2B"], ["gemma2:9b", "Gemma 2 9B"],
+      ["phi3:mini", "Phi-3 Mini"], ["mistral:7b", "Mistral 7B"],
+      ["codellama:7b", "Code Llama 7B · coding"], ["deepseek-coder:6.7b", "DeepSeek Coder 6.7B · coding"],
+      ["llama-guard3:1b", "Llama Guard 3 1B · safety classifier"], ["llama-guard3:8b", "Llama Guard 3 8B · safety classifier"]
+    ];
+    var hl = -1, shown = [];
+    function render() {
+      var f = input.value.toLowerCase();
+      shown = MODELS.filter(function (m) { return m[0].toLowerCase().indexOf(f) >= 0 || m[1].toLowerCase().indexOf(f) >= 0; });
+      if (!shown.length) { dd.hidden = true; input.setAttribute("aria-expanded", "false"); return; }
+      hl = -1;
+      dd.innerHTML = shown.map(function (m) { return '<div class="combo-item" data-v="' + esc(m[0]) + '"><span class="combo-v">' + esc(m[0]) + '</span><span class="combo-l">' + esc(m[1]) + "</span></div>"; }).join("");
+      dd.hidden = false; input.setAttribute("aria-expanded", "true");
+    }
+    function close() { dd.hidden = true; input.setAttribute("aria-expanded", "false"); }
+    function pick(v) { input.value = v; close(); }
+    input.addEventListener("focus", render);
+    input.addEventListener("input", render);
+    dd.addEventListener("mousedown", function (e) { var it = e.target.closest(".combo-item"); if (it) { e.preventDefault(); pick(it.getAttribute("data-v")); } });
+    input.addEventListener("keydown", function (e) {
+      if (dd.hidden) return;
+      var items = dd.querySelectorAll(".combo-item");
+      if (e.key === "ArrowDown") { e.preventDefault(); hl = Math.min(hl + 1, items.length - 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); hl = Math.max(hl - 1, 0); }
+      else if (e.key === "Enter" && hl >= 0) { e.preventDefault(); pick(shown[hl][0]); return; }
+      else if (e.key === "Escape") { close(); return; }
+      else return;
+      items.forEach(function (n, i) { n.classList.toggle("hl", i === hl); });
+      if (items[hl]) items[hl].scrollIntoView({ block: "nearest" });
+    });
+    document.addEventListener("click", function (e) { if (!combo.contains(e.target)) close(); });
+  })();
+
   // ---------- pollers ----------
   function pollStats() { fetch("/stats").then(function (r) { return r.json(); }).then(function (s) { applyStats(s); applyCharts(s); }).catch(function () {}); }
   function pollSystem() { fetch("/system").then(function (r) { return r.json(); }).then(applySystem).catch(function () {}); }
