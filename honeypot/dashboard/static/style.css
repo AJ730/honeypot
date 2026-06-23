@@ -202,9 +202,10 @@ table.data tbody tr:hover { background: rgba(91,141,239,.06); }
 .empty { color: var(--dim); padding: 16px 0; }
 .danger-zone { border-color: rgba(234,94,120,.35); }
 .danger-zone .card-head h2 { color: var(--blocked); }
+.danger-zone > p.hint { display: block; margin: 0 0 16px; }
 .btn-danger-solid {
-  background: var(--blocked); color: #fff; border: none; border-radius: 10px;
-  padding: 11px 22px; font: 600 13.5px var(--sans); cursor: pointer; transition: filter .15s; margin-top: 6px;
+  display: block; background: var(--blocked); color: #fff; border: none; border-radius: 10px;
+  padding: 11px 22px; font: 600 13.5px var(--sans); cursor: pointer; transition: filter .15s;
 }
 .btn-danger-solid:hover { filter: brightness(1.08); }
 .notice { padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; border: 1px solid; }
