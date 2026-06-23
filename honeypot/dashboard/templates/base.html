@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Honeypot Admin</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js"></script>
+  <script src="/static/chart.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Honeypot Admin</h1>
+    <nav>
+      <a href="#config">Config</a>
+      <a href="#models">Models</a>
+      <a href="#live">Live</a>
+      <a href="#analytics">Analytics</a>
+      <form class="logout" method="post" action="/logout">
+        <button class="logout" type="submit">Logout</button>
+      </form>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- Config Panel -->
+    <div id="config" class="panel">
+      <h2>Config</h2>
+      <div hx-get="/config" hx-trigger="load" hx-swap="innerHTML">
+        <p>Loading config&hellip;</p>
+      </div>
+    </div>
+
+    <!-- Models Panel -->
+    <div id="models" class="panel">
+      <h2>Models</h2>
+      <div hx-get="/models" hx-trigger="load" hx-swap="innerHTML">
+        <p>Loading models&hellip;</p>
+      </div>
+    </div>
+
+    <!-- Live Feed Panel -->
+    <div id="live" class="panel">
+      <h2>Live</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Source IP</th>
+            <th>Model</th>
+            <th>Endpoint</th>
+            <th>Routed</th>
+          </tr>
+        </thead>
+        <tbody id="live-table-body">
+          <!-- Rows inserted by app.js EventSource -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Analytics Panel -->
+    <div id="analytics" class="panel">
+      <h2>Analytics</h2>
+      <div class="charts-grid">
+        <div class="chart-wrap">
+          <h3>Requests over time</h3>
+          <canvas id="chart-time"></canvas>
+        </div>
+        <div class="chart-wrap">
+          <h3>Routing breakdown</h3>
+          <canvas id="chart-routed"></canvas>
+        </div>
+        <div class="chart-wrap">
+          <h3>Top endpoints</h3>
+          <canvas id="chart-endpoints"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
