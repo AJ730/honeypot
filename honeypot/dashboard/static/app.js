@@ -27,19 +27,21 @@
   }
   function meterClass(el, pct) { el.classList.toggle("hot", pct >= 85); el.style.width = Math.min(100, pct || 0) + "%"; }
 
-  // ---------- nav active state on scroll ----------
-  var sections = ["overview", "system", "live", "analytics", "models", "config"];
-  var links = {};
-  document.querySelectorAll(".nav-link").forEach(function (a) { links[a.getAttribute("href").slice(1)] = a; });
-  function onScroll() {
-    var best = sections[0], top = 120;
-    sections.forEach(function (id) {
-      var el = $(id); if (!el) return;
-      if (el.getBoundingClientRect().top <= top) best = id;
-    });
-    Object.keys(links).forEach(function (id) { links[id].classList.toggle("active", id === best); });
+  // ---------- tab switching ----------
+  function showTab(name) {
+    document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("active", t.dataset.tab === name); });
+    document.querySelectorAll(".tab-panel").forEach(function (p) { p.classList.toggle("active", p.id === "tab-" + name); });
+    try { history.replaceState(null, "", "#" + name); } catch (e) {}
+    // Charts created while hidden have zero size — resize them when revealed.
+    if (name === "analytics" && window.Chart && typeof charts !== "undefined" && charts) {
+      Object.keys(charts).forEach(function (k) { try { charts[k].resize(); } catch (e) {} });
+    }
   }
-  window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
+  document.querySelectorAll(".tab").forEach(function (t) {
+    t.addEventListener("click", function () { showTab(t.dataset.tab); });
+  });
+  var initial = (location.hash || "").slice(1);
+  if (initial && document.getElementById("tab-" + initial)) showTab(initial);
 
   // ---------- KPIs + routing ribbon ----------
   function applyStats(s) {
