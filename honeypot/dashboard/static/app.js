@@ -116,6 +116,10 @@
     body.insertBefore(tr, body.firstChild);
     while (body.children.length > MAX) body.removeChild(body.lastChild);
   }
+  // Pre-load recent history (persisted in SQLite) so the feed isn't empty on
+  // open, then stream new events live on top.
+  fetch("/feed/history?limit=200").then(function (r) { return r.json(); })
+    .then(function (rows) { rows.forEach(addRow); }).catch(function () {});
   try {
     var es = new EventSource("/feed");
     es.onmessage = function (e) { try { addRow(JSON.parse(e.data)); } catch (x) {} };

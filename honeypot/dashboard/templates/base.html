@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>honeypot // ops console</title>
-  <link rel="stylesheet" href="/static/style.css?v=10">
+  <link rel="stylesheet" href="/static/style.css?v=12">
   <script src="/static/htmx.min.js"></script>
   <script src="/static/chart.min.js"></script>
 </head>
@@ -82,7 +82,14 @@
   <!-- LIVE -->
   <section class="tab-panel" id="tab-live">
     <div class="card">
-      <div class="card-head"><h2>Live traffic</h2><span class="hint"><span class="dot live"></span> streaming &middot; newest first</span></div>
+      <div class="card-head">
+        <h2>Live traffic</h2>
+        <div class="head-actions">
+          <a class="btn-mini" href="/data/download/csv">&#8595; CSV</a>
+          <a class="btn-mini" href="/data/download/jsonl">&#8595; JSONL</a>
+          <span class="hint"><span class="dot live"></span> live + recent history</span>
+        </div>
+      </div>
       <div class="feed-wrap">
         <table class="data feed">
           <thead><tr><th>Time</th><th>Source IP</th><th>Endpoint</th><th>Model</th><th>Routed</th><th>Prompt</th></tr></thead>
@@ -144,6 +151,6 @@
   </section>
 
 </main>
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=12"></script>
 </body>
 </html>

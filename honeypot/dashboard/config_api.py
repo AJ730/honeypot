@@ -34,10 +34,14 @@ def register_config_routes(app):
             Config(**raw)  # validate exactly like the honeypot will load it
         except Exception as exc:
             return HTMLResponse(_form(yaml_text, None, str(exc)), status_code=400)
-        tmp = app.state.config_path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
+        # Write IN PLACE (not a tmp+rename): the honeypot bind-mounts this exact
+        # file, and a rename swaps the inode out from under the mount so the
+        # honeypot would never see the edit. ConfigStore tolerates a torn read
+        # via its last-good fallback, so dropping atomicity here is safe.
+        with open(app.state.config_path, "w", encoding="utf-8") as f:
             f.write(yaml_text)
-        os.replace(tmp, app.state.config_path)  # atomic
+            f.flush()
+            os.fsync(f.fileno())
         return HTMLResponse(_form(yaml_text, "Saved — honeypot will hot-reload.", None))
 
     app.include_router(router)

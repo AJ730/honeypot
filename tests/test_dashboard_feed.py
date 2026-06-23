@@ -1,5 +1,18 @@
 from honeypot.logging_store import LoggingStore
-from honeypot.dashboard.feed import fetch_since
+from honeypot.dashboard.feed import fetch_since, fetch_recent
+
+
+def test_fetch_recent_returns_last_n_ascending(tmp_path):
+    db = str(tmp_path / "store.db")
+    s = LoggingStore(db, str(tmp_path / "events.jsonl"))
+    for i in range(10):
+        s.log({"source_ip": "1.1.1.%d" % i, "endpoint": "/api/version", "routed": "fake"})
+    rows = fetch_recent(db, limit=3)
+    assert [r["source_ip"] for r in rows] == ["1.1.1.7", "1.1.1.8", "1.1.1.9"]
+
+
+def test_fetch_recent_missing_db(tmp_path):
+    assert fetch_recent(str(tmp_path / "nope.db")) == []
 
 
 def test_fetch_since(tmp_path):
